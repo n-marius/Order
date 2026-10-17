@@ -23,13 +23,13 @@ Der Token erlaubt den Apps, die beiden privaten Gists (Daten und Fotos) zu lesen
 4. **Permissions → Account permissions → Gists**: „Read and write“.
 5. **Generate token** → Token kopieren (beginnt mit `github_pat_`). Er wird nur einmal angezeigt.
 
-Sicherheit: Der Token liegt im Speicher jedes eingerichteten Geräts und gibt Schreibzugriff auf alle deine Gists. Wer ihn hat, kann deine Gists lesen und ändern. Wenn ein Gerät verloren geht: Token auf GitHub löschen, neuen erzeugen, Geräte neu einrichten. Ein „secret“ Gist ist nicht passwortgeschützt, sondern nur nicht auffindbar.
+Sicherheit: Der Token liegt im Speicher jedes eingerichteten Geräts und gibt Schreibzugriff auf alle Gists des Kontos. Wer ihn besitzt, kann diese Gists lesen und ändern. Wenn ein Gerät verloren geht: Token auf GitHub löschen, neuen erzeugen, Geräte neu einrichten. Ein „secret“ Gist ist nicht passwortgeschützt, sondern nur nicht auffindbar.
 
-Falls fine-grained Tokens bei dir keine Gist-Berechtigung anbieten: „Tokens (classic)“ mit nur dem Haken **gist** verwenden.
+Falls fine-grained Tokens keine Gist-Berechtigung anbieten: „Tokens (classic)“ mit nur dem Haken **gist** verwenden.
 
 ## 3. Push-Server (optional, für Mitteilungen)
 
-Siehe [ANLEITUNG-PUSH.md](ANLEITUNG-PUSH.md). Ohne Push funktioniert alles, Meldungen erscheinen dann aber nur bei geöffneter App.
+Siehe [ANLEITUNG-PUSH.md](ANLEITUNG-PUSH.md). Ohne Push funktioniert alles, Meldungen erscheinen dann jedoch nur bei geöffneter App.
 
 ## 4. Küche einrichten (iPad in der Küche)
 
@@ -50,7 +50,7 @@ Wichtig auf iPad/iPhone: Die Home-Bildschirm-App hat einen eigenen Speicher, get
 
 ## Verhalten und Grenzen
 
-- **Aktualität**: Die Geräte fragen den Gist alle 4 Sekunden ab, solange die App im Vordergrund ist. Neue Bestellungen erscheinen in der Küche also nach wenigen Sekunden.
+- **Aktualität**: Die Geräte fragen den Gist alle 4 Sekunden ab, solange die App im Vordergrund ist. Neue Bestellungen erscheinen in der Küche nach wenigen Sekunden.
 - **Küche „offline“**: Die Küche meldet sich jede Minute. Bestätigt sie eine Bestellung nicht innerhalb von 25 Sekunden, zeigt das Bestellgerät einen Hinweis; sobald die Küche sie empfängt, folgt eine Bestätigung. Bei gesperrtem Küchen-iPad gilt die Küche als offline – für den Dauerbetrieb Automatische Sperre in den iPad-Einstellungen auf „Nie“ stellen (Einstellungen → Anzeige & Helligkeit).
 - **Ohne Internet** arbeiten alle Apps weiter (Menü aus dem Speicher, Bestellungen werden gespeichert und später gesendet). Oben erscheint dann ein rotes Band.
 - **GitHub-Limits**: 5.000 API-Anfragen pro Stunde je Token. Unveränderte Abrufe zählen laut GitHub nicht mit. Bei vielen gleichzeitig offenen Geräten über Stunden kann das Limit theoretisch erreicht werden; die Einstellungen zeigen die verbleibenden Anfragen.
