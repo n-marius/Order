@@ -1,5 +1,5 @@
 // Service Worker der App „Bestellen“. Bei Änderungen an der Dateiliste die Versionsnummer erhöhen.
-self.TAFEL_CACHE = 'tafel-bestellen-v2';
+self.TAFEL_CACHE = 'tafel-bestellen-v3';
 self.TAFEL_ASSETS = [
   './',
   './index.html',

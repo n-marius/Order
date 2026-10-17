@@ -1,9 +1,15 @@
 // Service Worker der App „Küche“. Bei Änderungen an der Dateiliste die Versionsnummer erhöhen.
-self.TAFEL_CACHE = 'tafel-kueche-v1';
+self.TAFEL_CACHE = 'tafel-kueche-v3';
 self.TAFEL_ASSETS = [
   './',
   './index.html',
   './app.js',
+  './ctx.js',
+  './signals.js',
+  './orders.js',
+  './dishes.js',
+  './ingredients.js',
+  './settings.js',
   './app.css',
   './manifest.webmanifest',
   './icons/icon-192.png',

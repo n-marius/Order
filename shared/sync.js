@@ -240,9 +240,12 @@ export class Sync extends EventTarget {
   }
 
   async _flushNotify() {
-    if (!this._notifyQueue.length || !this.settings.workerUrl) return;
+    if (this._flushing || !this._notifyQueue.length || !this.settings.workerUrl) return;
     const due = this._notifyQueue.filter((m) => m.seq <= this._pushedSeq || !this.state.dirty);
     if (!due.length) return;
+    this._flushing = true;
+    // Fällige Meldungen sofort aus der Warteschlange nehmen, damit nichts doppelt gesendet wird
+    this._notifyQueue = this._notifyQueue.filter((m) => !due.includes(m));
     const rest = [];
     for (const m of due) {
       try {
@@ -256,8 +259,9 @@ export class Sync extends EventTarget {
         if (now() - m.at < 3600e3) rest.push(m);
       }
     }
-    this._notifyQueue = [...this._notifyQueue.filter((m) => !due.includes(m)), ...rest];
+    this._notifyQueue = [...this._notifyQueue, ...rest];
     localStorage.setItem(this._key('notify'), JSON.stringify(this._notifyQueue));
+    this._flushing = false;
   }
 
   _setOnline(v) {

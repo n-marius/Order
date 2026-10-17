@@ -421,6 +421,7 @@ body:has(.offline-band:not([hidden])) .toasts { top: calc(44px + var(--safe-t));
   box-shadow: var(--shadow-lg); transform: translateY(-140%); opacity: 0; transition: transform 0.45s var(--ease), opacity 0.3s;
 }
 .toast.in { transform: none; opacity: 1; }
+.toast, .notice { color: var(--label); }
 .toast-icon { width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center; background: var(--tint); color: #fff; flex: none; }
 .toast-icon .icon { width: 20px; height: 20px; --icon-stroke: 2; }
 .toast.red .toast-icon { background: var(--red); }

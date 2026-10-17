@@ -36,7 +36,7 @@ Siehe [ANLEITUNG-PUSH.md](ANLEITUNG-PUSH.md). Ohne Push funktioniert alles, Meld
 1. In Safari `https://n-marius.github.io/Order/kueche/` öffnen → Teilen → **Zum Home-Bildschirm**.
 2. App über das neue Symbol starten.
 3. Gerätename (z. B. „Küche“) und Token eingeben → **Neue Ablage anlegen**. Die App erstellt die beiden Gists selbst.
-4. Falls Push eingerichtet: Einstellungen → Push → Worker-URL und Haushaltsschlüssel eintragen → **Mitteilungen aktivieren** → Erlauben.
+4. Falls Push eingerichtet: Einstellungen → Mitteilungen → Worker-URL und Haushaltsschlüssel eintragen → **Mitteilungen aktivieren** → Erlauben.
 5. Zutaten und Gerichte anlegen.
 6. Einstellungen → **Einrichtungscode** → Kopieren. Den Code z. B. per AirDrop, Nachrichten oder Notizen auf die Bestellgeräte bringen.
 
@@ -44,7 +44,7 @@ Siehe [ANLEITUNG-PUSH.md](ANLEITUNG-PUSH.md). Ohne Push funktioniert alles, Meld
 
 1. In Safari `https://n-marius.github.io/Order/bestellen/` öffnen → Teilen → **Zum Home-Bildschirm**.
 2. App über das Symbol starten, Raumname eingeben (z. B. „Wohnzimmer“), Einrichtungscode einfügen.
-3. Einstellungen → Push → **Mitteilungen aktivieren** → Erlauben.
+3. Einstellungen → Mitteilungen → **Mitteilungen aktivieren** → Erlauben.
 
 Wichtig auf iPad/iPhone: Die Home-Bildschirm-App hat einen eigenen Speicher, getrennt von Safari. Die Einrichtung deshalb immer in der installierten App vornehmen, nicht im Safari-Tab.
 

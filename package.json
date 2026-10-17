@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "serve": "node tests/mock-server.mjs 8080"
+    "serve": "node tests/mock-server.mjs 8080",
+    "test": "node worker/test.mjs && node tests/kueche.e2e.mjs && node tests/bestellen.e2e.mjs && node tests/integration.e2e.mjs"
   }
 }

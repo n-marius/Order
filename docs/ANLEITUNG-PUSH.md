@@ -83,7 +83,7 @@ Optional (nur bei Bedarf, Typ *Text*):
 
 ## 7. In der Küchen-App eintragen
 
-1. Küchen-App öffnen → **Einstellungen → Push**.
+1. Küchen-App öffnen → **Einstellungen → Mitteilungen**.
 2. Worker-URL (aus Schritt 6) und Haushaltsschlüssel (aus Schritt 5) eintragen und speichern.
 3. Der **Einrichtungscode** der Küche enthält ab jetzt auch Worker-URL und Schlüssel. Auf den Bestellgeräten
    den neuen Einrichtungscode einfügen; dort ist keine weitere Eingabe nötig.
@@ -94,14 +94,14 @@ Optional (nur bei Bedarf, Typ *Text*):
 
 1. Die App in Safari öffnen → **Teilen** (Quadrat mit Pfeil) → **Zum Home-Bildschirm** → **Hinzufügen**.
 2. Die App ab jetzt nur noch über das Symbol auf dem Home-Bildschirm starten.
-3. In der App **Einstellungen → Push → Mitteilungen aktivieren** antippen und die Nachfrage mit **Erlauben**
+3. In der App **Einstellungen → Mitteilungen → Mitteilungen aktivieren** antippen und die Nachfrage mit **Erlauben**
    bestätigen.
 
 **Mac, Android, Windows (Chrome, Edge, Firefox, Safari):** In der App **Mitteilungen aktivieren** wählen und
 erlauben. Eine Installation ist dort nicht zwingend.
 
 Die Aktivierung ist je Gerät und je App (Küche/Bestellen) einmal nötig. Zum Prüfen eine Testmitteilung
-auslösen (sofern in den Push-Einstellungen angeboten) oder eine Bestellung aufgeben.
+auslösen („Testmitteilung senden“ bzw. „Test senden“) oder eine Bestellung aufgeben.
 
 ## Kostenrahmen (Free-Plan)
 
