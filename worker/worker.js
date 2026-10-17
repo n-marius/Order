@@ -1,7 +1,7 @@
 // Tafel – Push-Server (Cloudflare Worker, ES-Modul, ohne Abhängigkeiten)
 //
 // Web Push nach RFC 8030 (Zustellung), RFC 8291 (Verschlüsselung, aes128gcm) und RFC 8292 (VAPID).
-// Getestet gegen die Anforderungen von Apple (web.push.apple.com), Google FCM und Mozilla.
+// Ausgelegt für Apple (web.push.apple.com, iOS/iPadOS 16.4+), Google FCM, Mozilla und Microsoft (WNS).
 //
 // Bindings:
 //   TAFEL_KV        KV-Namespace (Pflicht)
@@ -25,7 +25,8 @@ const TTL_SECONDS = 86400;            // Aufbewahrung beim Push-Dienst, wenn das
 const JWT_LIFETIME = 12 * 3600;       // RFC 8292: ≤ 24 h; Apple: nicht mehr als 1 Tag in der Zukunft
 const JWT_RENEW_BEFORE = 2 * 3600;    // erneuern, wenn weniger als 2 h Restlaufzeit
 const RECORD_SIZE = 4096;
-const MAX_PLAINTEXT = RECORD_SIZE - 16 - 1; // ein Record: Klartext + Trennzeichen 0x02 + 16 Byte Tag
+// Push-Dienste garantieren 4096 Byte Nutzlast (verschlüsselt, inkl. 86 Byte Header, 0x02 und 16 Byte Tag)
+const MAX_PLAINTEXT = 4096 - 86 - 1 - 16;
 const MAX_REQUEST_BYTES = 16384;
 
 const enc = new TextEncoder();
@@ -270,12 +271,15 @@ function buildPayload(b) {
   const msg = {
     title: utf8Truncate(b.title || 'Tafel', 200),
     body: utf8Truncate(b.body ?? '', 1500),
-    ...(b.tag != null && b.tag !== '' ? { tag: utf8Truncate(b.tag, 100) } : {}),
+    ...(b.tag != null && b.tag !== '' ? { tag: String(b.tag).slice(0, 100) } : {}),
     ...(b.url != null && b.url !== '' ? { url: utf8Truncate(b.url, 1000) } : {}),
   };
   let bytes = enc.encode(JSON.stringify(msg));
-  if (bytes.length > MAX_PLAINTEXT) { // Sicherheitsnetz (z. B. viele maskierte Zeichen)
-    msg.body = utf8Truncate(msg.body, 500);
+  // Sicherheitsnetz (JSON-Maskierung kann Text verlängern)
+  for (const limit of [500, 100, 0]) {
+    if (bytes.length <= MAX_PLAINTEXT) break;
+    msg.body = limit ? utf8Truncate(msg.body, limit) : '';
+    if (!limit) { msg.title = utf8Truncate(msg.title, 100); delete msg.url; }
     bytes = enc.encode(JSON.stringify(msg));
   }
   return bytes;

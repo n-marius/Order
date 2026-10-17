@@ -1,72 +1,51 @@
-def svg(top, bottom, deep, glyph, mask='', sc=0.9, cy=512):
+from shapely.geometry import Point, box, Polygon
+from shapely import affinity
+
+def rbox(x0, y0, x1, y1, r):
+    return box(x0 + r, y0 + r, x1 - r, y1 - r).buffer(r, quad_segs=32)
+def fillet(g, r): return g.buffer(r, quad_segs=32).buffer(-r, quad_segs=32)
+def soften(g, r): return g.buffer(-r, quad_segs=32).buffer(r, quad_segs=32)
+def to_d(g):
+    polys = [g] if g.geom_type == 'Polygon' else list(g.geoms)
+    out = []
+    for p in polys:
+        for ring in [p.exterior, *p.interiors]:
+            c = list(ring.coords)
+            out.append('M' + ' L'.join(f'{x:.1f} {y:.1f}' for x, y in c[:-1]) + ' Z')
+    return ' '.join(out)
+
+def bell():
+    dome = affinity.scale(Point(512, 652).buffer(1, quad_segs=96), 282, 300).intersection(box(0, 0, 1024, 652))
+    dome = soften(dome, 8)
+    stem = box(498, 300, 526, 362)
+    knob = rbox(462, 284, 562, 316, 16)
+    top = fillet(dome.union(stem), 6).union(fillet(stem.union(knob), 4))
+    base = rbox(196, 676, 828, 734, 29)
+    return [(top, 'a'), (base, 'b')]
+
+def toque():
+    puff = Point(384, 430).buffer(130, quad_segs=96).union(Point(512, 356).buffer(156, quad_segs=96)).union(Point(640, 430).buffer(130, quad_segs=96))
+    body = Polygon([(366, 430), (658, 430), (640, 652), (384, 652)])
+    hat = soften(fillet(puff.union(body), 18), 16)
+    hat = hat.difference(rbox(456, 540, 476, 632, 10).union(rbox(548, 540, 568, 632, 10)))
+    band = rbox(380, 674, 644, 760, 26)
+    return [(hat, 'a'), (band, 'b')]
+
+def svg(top, bottom, deep, tintA, tintB, layers, cy):
+    body = ''
+    for g, kind in layers:
+        d = to_d(g)
+        body += f'<path d="{d}" fill="url(#{kind})" filter="url(#sh)"/>'
     return f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="{top}"/><stop offset="1" stop-color="{bottom}"/>
-    </linearGradient>
-    <radialGradient id="light" cx="0.5" cy="0.0" r="0.9">
-      <stop offset="0" stop-color="#fff" stop-opacity="0.22"/><stop offset="1" stop-color="#fff" stop-opacity="0"/>
-    </radialGradient>
-    <linearGradient id="plate" gradientUnits="userSpaceOnUse" x1="0" y1="180" x2="0" y2="844">
-      <stop offset="0" stop-color="#fff" stop-opacity="0.30"/><stop offset="1" stop-color="#fff" stop-opacity="0.12"/>
-    </linearGradient>
-    <linearGradient id="plateEdge" gradientUnits="userSpaceOnUse" x1="0" y1="180" x2="0" y2="844">
-      <stop offset="0" stop-color="#fff" stop-opacity="0.75"/><stop offset="0.5" stop-color="#fff" stop-opacity="0.18"/><stop offset="1" stop-color="#fff" stop-opacity="0.35"/>
-    </linearGradient>
-    <linearGradient id="glyph" gradientUnits="userSpaceOnUse" x1="0" y1="260" x2="0" y2="760">
-      <stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#F1F4FA"/>
-    </linearGradient>
-    <filter id="drop" x="-30%" y="-30%" width="160%" height="160%">
-      <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="{deep}" flood-opacity="0.38"/>
-    </filter>
-    {mask}
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="{top}"/><stop offset="1" stop-color="{bottom}"/></linearGradient>
+    <linearGradient id="a" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="{tintA}"/></linearGradient>
+    <linearGradient id="b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="{tintB}"/><stop offset="1" stop-color="{tintA}"/></linearGradient>
+    <filter id="sh" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="{deep}" flood-opacity="0.28"/></filter>
   </defs>
   <rect width="1024" height="1024" fill="url(#bg)"/>
-  <rect width="1024" height="1024" fill="url(#light)"/>
-  <circle cx="512" cy="512" r="332" fill="url(#plate)"/>
-  <circle cx="512" cy="512" r="331" fill="none" stroke="url(#plateEdge)" stroke-width="3"/>
-  <circle cx="512" cy="512" r="258" fill="none" stroke="#fff" stroke-opacity="0.22" stroke-width="6"/>
-  <g filter="url(#drop)" fill="url(#glyph)" transform="translate(512 {cy}) scale({sc}) translate(-512 -512)">
-{glyph}
-  </g>
+  <g transform="translate(0 {cy - 512})">{body}</g>
 </svg>'''
 
-# Gabel und Messer (Bestellen)
-fork_knife_mask = '''<mask id="tines" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024">
-      <rect width="1024" height="1024" fill="#fff"/>
-      <rect x="383" y="250" width="16" height="132" rx="8" fill="#000"/>
-      <rect x="441" y="250" width="16" height="132" rx="8" fill="#000"/>
-    </mask>'''
-fork_knife = '''    <g mask="url(#tines)">
-      <path d="M346 284 Q346 262 368 262 L472 262 Q494 262 494 284 L494 400 Q494 452 444 468 L444 742 Q444 774 420 774 Q396 774 396 742 L396 468 Q346 452 346 400 Z"/>
-    </g>
-    <path d="M598 262 C668 280 690 380 688 476 Q688 500 664 504 L646 506 L646 742 Q646 774 622 774 Q598 774 598 742 Z"/>'''
-
-# Kochmütze (Küche)
-toque_mask = '''<mask id="pleats" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024">
-      <rect width="1024" height="1024" fill="#fff"/>
-      <rect x="463" y="520" width="16" height="84" rx="8" fill="#000"/>
-      <rect x="545" y="520" width="16" height="84" rx="8" fill="#000"/>
-    </mask>'''
-toque = '''    <g mask="url(#pleats)">
-      <circle cx="404" cy="434" r="112"/>
-      <circle cx="512" cy="372" r="134"/>
-      <circle cx="620" cy="434" r="112"/>
-      <path d="M392 440 H632 L620 632 H404 Z"/>
-    </g>
-    <rect x="398" y="652" width="228" height="74" rx="22"/>'''
-
-bell_mask = '''<mask id="shine" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024">
-      <rect width="1024" height="1024" fill="#fff"/>
-      <path d="M398 584 C398 532 424 490 466 466" fill="none" stroke="#000" stroke-width="20" stroke-linecap="round"/>
-    </mask>'''
-bell = '''    <rect x="462" y="352" width="100" height="28" rx="14"/>
-    <rect x="500" y="368" width="24" height="60" rx="8"/>
-    <path mask="url(#shine)" d="M336 628 C336 500 414 418 512 418 C610 418 688 500 688 628 Z"/>
-    <rect x="312" y="648" width="400" height="54" rx="27"/>
-    <g fill="none" stroke="url(#glyph)" stroke-width="22" stroke-linecap="round">
-      <path d="M374 350 A200 200 0 0 0 334 418"/>
-      <path d="M650 350 A200 200 0 0 1 690 418"/>
-    </g>'''
-open('logo-bestellen.svg','w').write(svg('#4AA3FF', '#0B5FE0', '#062F8A', bell, bell_mask, 0.9, 522))
-open('logo-kueche.svg','w').write(svg('#FFB340', '#FF7A00', '#8A3A00', toque, toque_mask, 0.86, 530))
+open('logo-bestellen.svg', 'w').write(svg('#45A6FF', '#0A60E6', '#0638A0', '#DCEAFF', '#F2F7FF', bell(), 512 + 8))
+open('logo-kueche.svg', 'w').write(svg('#FFB33F', '#FF6A00', '#9A3A00', '#FFE9CF', '#FFF6EA', toque(), 512 - 4))

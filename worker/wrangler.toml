@@ -1,0 +1,21 @@
+# Alternative zum Dashboard: Bereitstellung per Wrangler-CLI
+#   npx wrangler kv namespace create TAFEL_KV     → ausgegebene ID unten eintragen
+#   npx wrangler secret put TAFEL_KEY             → Haushaltsschlüssel eingeben
+#   npx wrangler deploy
+# Anleitung ohne CLI: docs/ANLEITUNG-PUSH.md
+
+name = "tafel-push"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+workers_dev = true
+
+[[kv_namespaces]]
+binding = "TAFEL_KV"
+id = "HIER-KV-NAMESPACE-ID-EINTRAGEN"
+
+[vars]
+# Optional: Kontakt für die Push-Dienste (mailto:… oder https://…, ohne Leerzeichen/spitze Klammern).
+# Ohne Angabe wird ALLOWED_ORIGIN bzw. die eigene workers.dev-Adresse verwendet.
+# VAPID_SUBJECT = "mailto:name@beispiel.de"
+# Optional: nur diese Herkunft(en) per CORS zulassen (kommagetrennt), z. B. die GitHub-Pages-Adresse.
+# ALLOWED_ORIGIN = "https://name.github.io"
