@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Bestellen">
+  <meta name="application-name" content="Bestellen">
+  <meta name="description" content="Aus der Küche bestellen">
+  <meta name="theme-color" content="#f2f2f7">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="icon" type="image/svg+xml" href="icons/logo.svg">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="../shared/styles.css">
+  <link rel="stylesheet" href="app.css">
+  <title>Tafel</title>
+  <script>
+    // Darstellung vor dem ersten Zeichnen setzen (kein Aufblitzen)
+    try { var t = JSON.parse(localStorage.getItem('tafel.settings.order') || '{}').theme; if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch (e) {}
+  </script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
