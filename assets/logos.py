@@ -31,7 +31,19 @@ def toque():
     band = rbox(380, 674, 644, 760, 26)
     return [(hat, 'a'), (band, 'b')]
 
-def svg(top, bottom, deep, tintA, tintB, layers, cy):
+def svg(top, bottom, deep, tintA, tintB, layers, cy, strong=False):
+    from shapely.ops import unary_union
+    x0, y0, x1, y1 = unary_union([g for g, _ in layers]).bounds
+    dx = 512 - (x0 + x1) / 2
+    dy = (cy - (y0 + y1) / 2) if strong else (cy - 512)
+    sheen = '<rect width="1024" height="1024" fill="url(#sheen)"/>' if strong else ''
+    if strong:
+        shadow = f'''<filter id="sh" filterUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024">
+      <feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="{deep}" flood-opacity="0.38"/>
+      <feDropShadow dx="0" dy="18" stdDeviation="24" flood-color="{deep}" flood-opacity="0.34"/>
+    </filter>'''
+    else:
+        shadow = f'<filter id="sh" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="{deep}" flood-opacity="0.28"/></filter>'
     body = ''
     for g, kind in layers:
         d = to_d(g)
@@ -41,11 +53,13 @@ def svg(top, bottom, deep, tintA, tintB, layers, cy):
     <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="{top}"/><stop offset="1" stop-color="{bottom}"/></linearGradient>
     <linearGradient id="a" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="{tintA}"/></linearGradient>
     <linearGradient id="b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="{tintB}"/><stop offset="1" stop-color="{tintA}"/></linearGradient>
-    <filter id="sh" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="{deep}" flood-opacity="0.28"/></filter>
+    <radialGradient id="sheen" cx="0.5" cy="0" r="0.75"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0.22"/><stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/></radialGradient>
+    {shadow}
   </defs>
   <rect width="1024" height="1024" fill="url(#bg)"/>
-  <g transform="translate(0 {cy - 512})">{body}</g>
+  {sheen}
+  <g transform="translate({dx:.1f} {dy:.1f})">{body}</g>
 </svg>'''
 
-open('logo-bestellen.svg', 'w').write(svg('#45A6FF', '#0A60E6', '#0638A0', '#DCEAFF', '#F2F7FF', bell(), 512 + 8))
+open('logo-bestellen.svg', 'w').write(svg('#62C6FF', '#0846DB', '#02247A', '#D6E6FF', '#EEF5FF', bell(), 506, strong=True))
 open('logo-kueche.svg', 'w').write(svg('#FFB33F', '#FF6A00', '#9A3A00', '#FFE9CF', '#FFF6EA', toque(), 512 - 4))
