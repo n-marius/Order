@@ -56,5 +56,17 @@ toque = '''    <g mask="url(#pleats)">
     </g>
     <rect x="398" y="652" width="228" height="74" rx="22"/>'''
 
-open('logo-bestellen.svg','w').write(svg('#4AA3FF', '#0B5FE0', '#062F8A', fork_knife, fork_knife_mask, 0.88, 512))
+bell_mask = '''<mask id="shine" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024">
+      <rect width="1024" height="1024" fill="#fff"/>
+      <path d="M398 584 C398 532 424 490 466 466" fill="none" stroke="#000" stroke-width="20" stroke-linecap="round"/>
+    </mask>'''
+bell = '''    <rect x="462" y="352" width="100" height="28" rx="14"/>
+    <rect x="500" y="368" width="24" height="60" rx="8"/>
+    <path mask="url(#shine)" d="M336 628 C336 500 414 418 512 418 C610 418 688 500 688 628 Z"/>
+    <rect x="312" y="648" width="400" height="54" rx="27"/>
+    <g fill="none" stroke="url(#glyph)" stroke-width="22" stroke-linecap="round">
+      <path d="M374 350 A200 200 0 0 0 334 418"/>
+      <path d="M650 350 A200 200 0 0 1 690 418"/>
+    </g>'''
+open('logo-bestellen.svg','w').write(svg('#4AA3FF', '#0B5FE0', '#062F8A', bell, bell_mask, 0.9, 522))
 open('logo-kueche.svg','w').write(svg('#FFB340', '#FF7A00', '#8A3A00', toque, toque_mask, 0.86, 530))

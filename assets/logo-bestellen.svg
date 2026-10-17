@@ -18,10 +18,9 @@
     <filter id="drop" x="-30%" y="-30%" width="160%" height="160%">
       <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#062F8A" flood-opacity="0.38"/>
     </filter>
-    <mask id="tines" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024">
+    <mask id="shine" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024">
       <rect width="1024" height="1024" fill="#fff"/>
-      <rect x="383" y="250" width="16" height="132" rx="8" fill="#000"/>
-      <rect x="441" y="250" width="16" height="132" rx="8" fill="#000"/>
+      <path d="M398 584 C398 532 424 490 466 466" fill="none" stroke="#000" stroke-width="20" stroke-linecap="round"/>
     </mask>
   </defs>
   <rect width="1024" height="1024" fill="url(#bg)"/>
@@ -29,10 +28,14 @@
   <circle cx="512" cy="512" r="332" fill="url(#plate)"/>
   <circle cx="512" cy="512" r="331" fill="none" stroke="url(#plateEdge)" stroke-width="3"/>
   <circle cx="512" cy="512" r="258" fill="none" stroke="#fff" stroke-opacity="0.22" stroke-width="6"/>
-  <g filter="url(#drop)" fill="url(#glyph)" transform="translate(512 512) scale(0.88) translate(-512 -512)">
-    <g mask="url(#tines)">
-      <path d="M346 284 Q346 262 368 262 L472 262 Q494 262 494 284 L494 400 Q494 452 444 468 L444 742 Q444 774 420 774 Q396 774 396 742 L396 468 Q346 452 346 400 Z"/>
+  <g filter="url(#drop)" fill="url(#glyph)" transform="translate(512 522) scale(0.9) translate(-512 -512)">
+    <rect x="462" y="352" width="100" height="28" rx="14"/>
+    <rect x="500" y="368" width="24" height="60" rx="8"/>
+    <path mask="url(#shine)" d="M336 628 C336 500 414 418 512 418 C610 418 688 500 688 628 Z"/>
+    <rect x="312" y="648" width="400" height="54" rx="27"/>
+    <g fill="none" stroke="url(#glyph)" stroke-width="22" stroke-linecap="round">
+      <path d="M374 350 A200 200 0 0 0 334 418"/>
+      <path d="M650 350 A200 200 0 0 1 690 418"/>
     </g>
-    <path d="M598 262 C668 280 690 380 688 476 Q688 500 664 504 L646 506 L646 742 Q646 774 622 774 Q598 774 598 742 Z"/>
   </g>
 </svg>
