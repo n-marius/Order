@@ -66,7 +66,7 @@ export const isManual = (dishId) => String(dishId || '').startsWith(MANUAL_PREFI
 export function manualDish(category) {
   return {
     id: MANUAL_PREFIX + category, name: 'Manuell', category, country: '', manual: true,
-    description: 'Freie Bestellung – schreib in die Anmerkung, was du möchtest.',
+    description: 'Freie Bestellung. Der Wunsch wird in der Anmerkung angegeben.',
     imageId: null, sizes: [], ingredients: [], steps: [], options: [], ice: null, sort: 1e9,
   };
 }
