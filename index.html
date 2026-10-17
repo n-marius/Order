@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="Tafel – Bestellen und Küche für zu Hause">
+  <link rel="icon" type="image/svg+xml" href="bestellen/icons/logo.svg">
+  <link rel="stylesheet" href="shared/styles.css">
+  <title>Tafel</title>
+  <style>
+    body { display: flex; min-height: 100dvh; align-items: center; justify-content: center; }
+    main { width: min(720px, 100%); padding: calc(40px + var(--safe-t)) 20px calc(40px + var(--safe-b)); }
+    h1 { margin: 0 0 6px; }
+    .lead { margin: 0 0 32px; }
+    .apps { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-bottom: 32px; }
+    .app-card { display: flex; gap: 16px; align-items: center; padding: 18px; text-decoration: none; color: inherit; }
+    .app-card img { width: 72px; height: 72px; border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,.15); }
+    .app-card:active { transform: scale(.98); }
+    ol { margin: 0; padding: 14px 16px 14px 36px; }
+    li { margin: 6px 0; font-size: 15px; line-height: 20px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1 class="t-large">Tafel</h1>
+    <p class="lead t-callout c2">Bestellen aus der Küche – für zu Hause.</p>
+    <div class="apps">
+      <a class="card app-card" href="kueche/">
+        <img src="kueche/icons/icon-180.png" alt="">
+        <div><div class="t-headline">Küche</div><div class="t-sub c2">Bestellungen empfangen, Gerichte und Zutaten verwalten</div></div>
+      </a>
+      <a class="card app-card" href="bestellen/">
+        <img src="bestellen/icons/icon-180.png" alt="">
+        <div><div class="t-headline">Bestellen</div><div class="t-sub c2">Ein Gerät je Raum</div></div>
+      </a>
+    </div>
+    <div class="section">
+      <div class="section-head">Auf dem iPad installieren</div>
+      <div class="list">
+        <ol>
+          <li>Diese Seite in Safari öffnen und die gewünschte App antippen.</li>
+          <li>Teilen-Symbol → „Zum Home-Bildschirm“ → „Hinzufügen“.</li>
+          <li>Die App ab jetzt nur noch über das Symbol auf dem Home-Bildschirm starten (nur dort funktionieren Mitteilungen).</li>
+        </ol>
+      </div>
+      <div class="section-foot">Zuerst die Küche einrichten. Sie erzeugt den Einrichtungscode für die Bestellgeräte.</div>
+    </div>
+  </main>
+</body>
+</html>
