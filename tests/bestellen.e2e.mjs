@@ -200,6 +200,43 @@ try {
   await addToCart(page);
   check(await cartCount(page) === '4', 'Warenkorb-Zähler 4');
 
+  step('Vorrat: sofort verfügbar');
+  await openCategory(page, 'Desserts');
+  await page.waitForFunction(() => document.querySelectorAll('.dish-photo img').length >= 3);
+  check(await page.locator('[data-dish=d-tiramisu] .ready-badge').count() === 1, 'Badge „Sofort verfügbar“ auf der Karte');
+  check(await page.locator('[data-dish=d-tiramisu] .ready-count').textContent() === '3', 'Anzahl 3 im Badge');
+  check(await page.locator('[data-dish=d-creme] .ready-badge').count() === 0, 'kein Badge ohne Vorrat');
+  await shot(page, 'ipad-light-02b-ready');
+  await openCategory(page, 'Hauptspeisen');
+  check(await page.locator('[data-dish=d-schnitzel] .ready-count').textContent() === '2', 'Schnitzel: Badge mit 2');
+  check((await page.locator('[data-dish=d-schnitzel] .dish-ready-sizes').textContent()) === 'Normal 2', 'Schnitzel: Vorrat je Größe');
+  check(await page.locator('[data-dish=d-gyros].unavailable').count() === 1, 'Gyros: Pflichtauswahl ohne wählbare Option → nicht verfügbar');
+  await page.click('[data-dish=d-gyros]');
+  sh = topSheet(page);
+  await sh.locator('.add-btn').waitFor();
+  check((await sh.locator('.dish-avail').textContent()).includes('Beilage: keine Auswahl vorhanden'), 'Gyros: Hinweis „keine Auswahl vorhanden“');
+  check(await sh.locator('.add-btn').isDisabled(), 'Gyros: Korb-Knopf gesperrt');
+  await sh.locator('.navbar-side.end .barbtn').click();
+  await page.waitForTimeout(450);
+  await openCategory(page, 'Getränke');
+  check((await page.locator('[data-dish=d-limo] .dish-ready-sizes').textContent()) === '0,3 l 2', 'Limonade: Vorrat je Größe auf der Karte');
+  await page.click('[data-dish=d-limo]');
+  sh = topSheet(page);
+  await sh.locator('.add-btn').waitFor();
+  check((await sh.locator('.dish-stock').textContent()).includes('2 sofort verfügbar'), 'Feinauswahl: „2 sofort verfügbar“');
+  check(await sh.locator('.seg-stock .seg-stock-n').count() === 1 && (await sh.locator('.seg-stock .seg-stock-n').textContent()) === '2 sofort', 'Anzahl je Größe unter dem Segment');
+  await sh.locator('.dish-foot [aria-label=Mehr]').click();
+  await sh.locator('.dish-foot [aria-label=Mehr]').click();
+  check((await sh.locator('.dish-stock-sub').textContent()).includes('Bei 3 Stück: 2 sofort, 1 wird frisch zubereitet.'), 'Hinweis bei größerer Menge');
+  await shot(page, 'ipad-light-02c-ready-sheet');
+  await sh.locator('.seg button:has-text("0,5 l")').click();
+  check((await sh.locator('.dish-stock.none').textContent()).includes('Für diese Größe nichts vorbereitet – wird frisch zubereitet'), 'Größe ohne Vorrat: Hinweis');
+  await kitchen(S.gistId, (d) => { d.menu.dishes['d-limo'].ready = { 's-03': 2, 's-05': 4 }; d.menu.dishes['d-limo'].updatedAt = Date.now(); });
+  await sh.locator('.dish-stock:not(.none)').waitFor({ timeout: 15000 });
+  check((await sh.locator('.dish-stock').textContent()).includes('4 sofort verfügbar'), 'Feinauswahl aktualisiert sich live');
+  await sh.locator('.navbar-side.end .barbtn').click();
+  await page.waitForTimeout(450);
+
   step('Warenkorb');
   await dismissToasts(page);
   await page.click('.cart-btn');
@@ -317,12 +354,26 @@ try {
   await page.click('[data-dish=d-tiramisu]');
   await topSheet(page).locator('.add-btn').waitFor();
   await page.waitForTimeout(400);
+  await topSheet(page).locator('.dish-foot [aria-label=Mehr]').click();
   await addToCart(page);
+  await page.click('[data-dish=d-tiramisu]');
+  await topSheet(page).locator('.add-btn').waitFor();
+  await page.waitForTimeout(400);
+  await topSheet(page).locator('textarea').fill('Ohne Kakao');
+  await topSheet(page).locator('.dish-foot [aria-label=Mehr]').click();
+  await addToCart(page);
+  check(await page.evaluate(() => JSON.parse(localStorage.getItem('tafel.cart')).items.map((i) => i.stockQty).join()) === '2,2', 'stockQty beim Hinzufügen = min(Menge, Vorrat)');
   await dismissToasts(page);
   await page.click('.cart-btn');
-  await topSheet(page).locator('.order-btn').click();
+  const cs = topSheet(page);
+  await cs.locator('.cart-row').first().waitFor();
+  check((await cs.locator('.cart-row >> nth=0').locator('.stock-line').textContent()) === 'davon 2 sofort verfügbar', 'Warenkorb: „davon 2 sofort verfügbar“');
+  check((await cs.locator('.cart-row >> nth=1').locator('.stock-line').textContent()) === 'davon 1 sofort verfügbar', 'Warenkorb: Summe über Positionen begrenzt (davon 1)');
+  await shot(page, 'ipad-light-04b-cart-ready');
+  await cs.locator('.order-btn').click();
   const doc5 = await until(async () => { const d = await deviceDoc(S.gistId, deviceId); return d && Object.keys(d.orders).length === 2 && d; }, { label: 'zweite Bestellung im Gist' });
   const order2 = Object.values(doc5.orders).find((o) => o.id !== order1.id);
+  check(order2.items.map((i) => i.stockQty).join() === '2,1', 'stockQty im Gist neu berechnet (2 und 1)');
   const t25 = Date.now();
   await page.click('.sidebar .sb-item:has-text("Meine Bestellungen")');
   await toastWith(page, 'yellow', 'noch nicht empfangen').catch(() => null);
@@ -339,6 +390,7 @@ try {
   check(true, 'grüner Banner „Die Küche hat die Bestellung jetzt empfangen.“');
   await page.waitForSelector(`#order-${order2.id} .ack.received`);
   check(await page.locator(`#order-${order2.id} .order-notice`).count() === 0, 'Hinweis verschwunden');
+  check(await page.locator(`#order-${order2.id} .oitem-stock`).count() === 2, '„Meine Bestellungen“ zeigt den Vorrat je Position');
 
   step('Gerät offline');
   await dismissToasts(page);
@@ -372,12 +424,45 @@ try {
   await page.waitForSelector('.offline-band[hidden]', { state: 'attached' });
   expectNetErrors = false;
 
+  step('Position mit Vorrat ändern');
+  for (const [nth, btn, label] of [[0, 'Weniger', 'Menge 2 → 1'], [1, 'Mehr', 'Menge 2 → 3']]) {
+    await dismissToasts(page);
+    await page.locator(`#order-${order2.id} .oitem >> nth=${nth}`).locator('.more-btn').click();
+    await page.locator('.action-root.in button:has-text("Position ändern")').click();
+    sh = topSheet(page);
+    await sh.locator('.add-btn').waitFor();
+    await page.waitForTimeout(450);
+    check(await sh.locator('.dish-stock').isHidden(), `Ändern (${label}): kein Vorratshinweis`);
+    await sh.locator(`.dish-foot [aria-label=${btn}]`).click();
+    await sh.locator('.add-btn').click();
+    await page.locator('.alert-root.in button:has-text("Senden")').click();
+    await page.waitForTimeout(300);
+  }
+  const docS = await until(async () => { const d = await deviceDoc(S.gistId, deviceId); return d?.orders[order2.id].rev === 3 && d; }, { label: 'Änderungen mit Vorrat im Gist' });
+  const [ti1, ti2] = docS.orders[order2.id].items;
+  check(ti1.qty === 1 && ti1.stockQty === 1, 'Menge reduziert → stockQty = min(stockQty, Menge) = 1');
+  check(ti2.qty === 3 && ti2.stockQty === 1, 'Menge erhöht → stockQty nicht erhöht (1)');
+
+  step('Storno-Grund (Vorrat)');
+  await kitchen(S.gistId, (d) => {
+    d.status[order2.id] = { ackRev: 3, updatedAt: Date.now(), items: { [ti2.id]: { state: 'storno', reason: 'Vorrat nicht ausreichend: Tiramisu wurde in der Zwischenzeit bereits vergeben', updatedAt: Date.now(), questions: [] } } };
+  });
+  await toastWith(page, 'red', 'Storniert: Tiramisu');
+  await dismissToasts(page);
+  const reasonBox = page.locator(`#order-${order2.id} .oitem.state-storno .ibox`);
+  await reasonBox.waitFor();
+  check((await reasonBox.textContent()).includes('Vorrat nicht ausreichend'), 'Storno-Grund angezeigt');
+  const reasonColor = await reasonBox.locator('.grow > div:not(.ibox-title)').evaluate((el) => getComputedStyle(el).color);
+  check(!/255, 59, 48/.test(reasonColor), `Grund in Etikettfarbe gut lesbar (${reasonColor})`);
+  await reasonBox.scrollIntoViewIfNeeded();
+  await shot(page, 'ipad-light-07b-storno-vorrat');
+
   step('Bestellung stornieren');
   await dismissToasts(page);
   await page.locator(`#order-${order2.id} .link-btn:has-text("Bestellung stornieren")`).click();
   await page.locator('.alert-root.in button:has-text("Stornieren")').click();
   const doc7 = await until(async () => { const d = await deviceDoc(S.gistId, deviceId); return d?.orders[order2.id].cancelled && d; }, { label: 'Storno im Gist' });
-  check(doc7.orders[order2.id].rev === 2 && doc7.orders[order2.id].changes.at(-1).text === 'Bestellung storniert', 'rev 2, Protokoll „Bestellung storniert“');
+  check(doc7.orders[order2.id].rev === 4 && doc7.orders[order2.id].changes.at(-1).text === 'Bestellung storniert', 'rev 4, Protokoll „Bestellung storniert“');
   const n7 = await until(async () => (await notifies()).find((n) => n.title === 'Storniert · Wohnzimmer'), { label: 'Notify Storno' });
   check(n7.tag === order2.id, 'Notify „Storniert · Wohnzimmer“');
 

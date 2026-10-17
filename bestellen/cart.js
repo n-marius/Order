@@ -5,6 +5,7 @@ import { dishAvailability, choiceAvailable, itemDetails, isManual } from '../sha
 import { sheet, stepper, photo, toast, alert, confirm, icon, iconEl } from '../shared/ui.js';
 import { S, view, cart, saveCart, cartCount, itemsSummary, room } from './store.js';
 import { openDish } from './menu.js';
+import { allocateStock, stockLine, readyFor } from './stock.js';
 
 /** Problem einer Warenkorb-Position mit dem aktuellen Menü ('' = in Ordnung). */
 export function cartProblem(v, it) {
@@ -64,15 +65,19 @@ export function openCart() {
     emptyEl.hidden = items.length > 0;
     noteSec.hidden = clearBtn.hidden = !items.length;
     listEl.hidden = !items.length;
-    listEl.replaceChildren(...items.map((it) => row(v, it)));
+    const alloc = allocateStock(v, items);
+    listEl.replaceChildren(...items.map((it) => row(v, it, alloc.get(it.id) || 0)));
     updateFoot();
   }
 
-  function row(v, it) {
+  function row(v, it, stockN) {
     const problem = cartProblem(v, it);
     const details = itemDetails(it);
     const fl = flag(it.country);
-    const qty = stepper(it.qty, { min: 1, max: 99, onChange: (q) => { it.qty = q; saveCart(); updateFoot(); } });
+    const qty = stepper(it.qty, {
+      min: 1, max: 99,
+      onChange: (q) => { it.qty = q; it.stockQty = Math.min(q, readyFor(view(), view().dishes.get(it.dishId), it.sizeId)); saveCart(); render(); },
+    });
     qty.classList.add('sm');
     return h('div', { class: `cart-row${problem ? ' problem' : ''}`, dataset: { item: it.id } },
       h('button', { class: 'cart-main', 'aria-label': `${it.name} bearbeiten`, onclick: () => edit(it) },
@@ -81,6 +86,7 @@ export function openCart() {
           h('div', { class: 'cart-name' }, it.name, isManual(it.dishId) ? h('span', { class: 'c2' }, ` · ${categoryById(it.category)?.single || ''}`) : null, fl ? h('span', { class: 'inline-flag' }, fl) : null),
           details.length ? h('div', { class: 'cart-det' }, details.join(' · ')) : null,
           it.note ? h('div', { class: 'cart-note' }, it.note) : null,
+          problem ? null : stockLine(stockN, it.qty),
           problem ? h('div', { class: 'cart-problem' }, iconEl('warning'), problem) : null)),
       h('div', { class: 'cart-side' },
         qty,
@@ -145,10 +151,12 @@ export function openCart() {
 export function placeOrder() {
   const t = now();
   const id = uid('b');
+  const alloc = allocateStock(view(), cart.items);
   const items = cart.items.map((it) => ({
     id: it.id || uid('i'), dishId: it.dishId, name: it.name, category: it.category, country: it.country || '',
     sizeId: it.sizeId ?? null, sizeName: it.sizeName ?? null, qty: it.qty, ice: it.ice ?? null,
     options: it.options || {}, optionLabels: it.optionLabels || [], note: it.note || '',
+    stockQty: alloc.get(it.id) || 0,
     cancelled: false, cancelledAt: null, answers: {},
   }));
   const order = {

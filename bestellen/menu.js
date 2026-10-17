@@ -6,6 +6,7 @@ import {
 } from '../shared/model.js';
 import { sheet, segmented, stepper, photo, toast, icon, iconEl } from '../shared/ui.js';
 import { S, view, cart, saveCart, emit } from './store.js';
+import { BOLT, boltEl, readyFor, readySum, readyBySize } from './stock.js';
 
 // ---------- Raster ----------
 
@@ -34,24 +35,28 @@ export function renderMenu(cat) {
 function dishCard(v, d) {
   const av = dishAvailability(v, d);
   const fl = flag(d.country);
+  const ready = av.available ? readySum(v, d) : 0;
+  const sizesReady = ready && d.sizes?.length ? readyBySize(d).filter((x) => x.n > 0) : [];
   const media = d.manual
     ? h('div', { class: 'dish-photo manual-art', html: icon('compose') })
     : photo(S.sync, d.imageId, { cls: 'dish-photo', ph: categoryById(d.category)?.icon || 'photo' });
   return h('button', {
     class: `dish-card${av.available ? '' : ' unavailable'}${d.manual ? ' manual' : ''}`,
     dataset: { dish: d.id },
-    'aria-label': `${d.name}${av.available ? '' : ', nicht verfügbar'}`,
+    'aria-label': `${d.name}${av.available ? '' : ', nicht verfügbar'}${ready ? `, ${ready} sofort verfügbar` : ''}`,
     onclick: () => openDish(d.id),
   },
   h('div', { class: 'dish-media' },
     media,
     fl ? h('span', { class: 'dish-flag', title: countryName(d.country) }, fl) : null,
-    av.available ? null : h('span', { class: 'dish-na' }, 'Nicht verfügbar')),
+    av.available ? null : h('span', { class: 'dish-na' }, 'Nicht verfügbar'),
+    ready ? h('span', { class: 'ready-badge' }, h('span', { class: 'ready-icon', html: BOLT }), h('span', { class: 'ready-text' }, 'Sofort verfügbar'), h('span', { class: 'ready-count' }, String(ready))) : null),
   h('div', { class: 'dish-info' },
     h('div', { class: 'dish-text' },
       h('div', { class: 'dish-name' }, d.name),
       d.manual ? h('div', { class: 'dish-desc' }, 'Freie Bestellung mit eigener Beschreibung')
-        : d.description ? h('div', { class: 'dish-desc' }, d.description) : null),
+        : d.description ? h('div', { class: 'dish-desc' }, d.description) : null,
+      sizesReady.length ? h('div', { class: 'dish-ready-sizes' }, sizesReady.map((x) => `${x.size.name} ${x.n}`).join(' · ')) : null),
     av.available ? h('span', { class: 'dish-add', 'aria-hidden': 'true', html: icon('plus') }) : null));
 }
 
@@ -66,10 +71,11 @@ const sameConfig = (a, b) => a.dishId === b.dishId && (a.sizeId || null) === (b.
 /**
  * Öffnet die Feinauswahl.
  * @param {string} dishId
- * @param {{item?:object, onSave?:(item:object)=>void, saveLabel?:string}} [o]
+ * @param {{item?:object, onSave?:(item:object)=>void, saveLabel?:string, stock?:boolean}} [o]
+ *   stock: Vorrat anzeigen (nicht beim Ändern einer bereits gesendeten Position).
  *   item: bestehende Position (Bearbeiten), onSave: statt „in den Warenkorb“.
  */
-export function openDish(dishId, { item = null, onSave = null, saveLabel = 'Übernehmen' } = {}) {
+export function openDish(dishId, { item = null, onSave = null, saveLabel = 'Übernehmen', stock = true } = {}) {
   const getDish = () => (isManual(dishId) ? manualDish(dishId.slice(MANUAL_PREFIX.length)) : view().dishes.get(dishId) || null);
   let dish = getDish();
   if (!dish && !item) return;
@@ -106,11 +112,15 @@ export function openDish(dishId, { item = null, onSave = null, saveLabel = 'Übe
   const availEl = h('div', { class: 'dish-avail' });
   const ingEl = h('div', { class: 'cfg-ing' });
   const optsEl = h('div', { class: 'cfg-opts' });
+  const stockEl = h('div', { class: 'dish-stock', 'aria-live': 'polite' });
+  const segStockEl = h('div', { class: 'seg-stock', style: { gridTemplateColumns: `repeat(${Math.max(1, (dish.sizes || []).length)}, 1fr)` } });
 
   // Portionsgröße
   let sizeSec = null;
   if (sizes.length) {
-    sizeSec = cfgSection('Größe', null, segmented(sizes.map((s) => ({ value: s.id, label: s.name })), st.sizeId, (val) => { st.sizeId = val; renderIngredients(); updateFoot(); }, { large: true }));
+    sizeSec = cfgSection('Größe', null, [
+      segmented(sizes.map((s) => ({ value: s.id, label: s.name })), st.sizeId, (val) => { st.sizeId = val; renderIngredients(); renderStock(); updateFoot(); }, { large: true }),
+      segStockEl]);
   }
   // Eis
   let iceSec = null;
@@ -129,13 +139,13 @@ export function openDish(dishId, { item = null, onSave = null, saveLabel = 'Übe
   const body = h('div', { class: 'dish-sheet-body' },
     h('div', { class: 'dish-hero-wrap' }, hero),
     h('div', { class: 'dish-config' },
-      head, availEl,
+      head, availEl, stockEl,
       dish.ingredients?.length ? ingEl : null,
       sizeSec, iceSec, optsEl, noteSec));
 
   // --- Fuß: Anzahl + runder Korb-Knopf ---
   const hintEl = h('div', { class: 'dish-foot-hint' });
-  const qty = stepper(st.qty, { min: 1, max: 20, onChange: (q) => { st.qty = q; updateFoot(); } });
+  const qty = stepper(st.qty, { min: 1, max: 20, onChange: (q) => { st.qty = q; renderStock(); updateFoot(); } });
   const addBtn = h('button', {
     class: 'circle-btn filled lg add-btn',
     'aria-label': editing ? saveLabel : 'In den Warenkorb',
@@ -162,6 +172,34 @@ export function openDish(dishId, { item = null, onSave = null, saveLabel = 'Übe
     }
     const av = dishAvailability(v, dish);
     availEl.replaceChildren(av.available ? '' : notice('red', 'xCircle', 'Zurzeit nicht verfügbar', `Es fehlt: ${av.missing.join(', ')}`));
+  }
+
+  /** Vorrat: Hinweiszeile und Anzahl je Größe unter dem Segment. */
+  function renderStock() {
+    const v = view();
+    const total = dish.gone || !stock ? 0 : readySum(v, dish);
+    if (sizes.length) {
+      segStockEl.hidden = !total;
+      segStockEl.replaceChildren(...readyBySize(dish).map((x) => (x.n > 0 && total
+        ? h('span', { class: `seg-stock-n${x.size.id === st.sizeId ? ' on' : ''}` }, boltEl(), `${x.n} sofort`)
+        : h('span', { class: 'seg-stock-none' }, '–'))));
+    }
+    if (!total) { stockEl.replaceChildren(); stockEl.hidden = true; return; }
+    stockEl.hidden = false;
+    const n = readyFor(v, dish, st.sizeId);
+    if (!n) {
+      stockEl.className = 'dish-stock none';
+      stockEl.replaceChildren(iconEl('clock'), h('div', { class: 'grow' },
+        h('div', { class: 'dish-stock-title' }, 'Für diese Größe nichts vorbereitet – wird frisch zubereitet')));
+      return;
+    }
+    stockEl.className = 'dish-stock';
+    const rest = Math.max(0, st.qty - n);
+    stockEl.replaceChildren(h('span', { class: 'dish-stock-icon', html: BOLT }), h('div', { class: 'grow' },
+      h('div', { class: 'dish-stock-title' }, `${n} sofort verfügbar`),
+      h('div', { class: 'dish-stock-sub' }, rest
+        ? `Bei ${st.qty} Stück: ${n} sofort, ${rest} ${rest === 1 ? 'wird' : 'werden'} frisch zubereitet.`
+        : 'Bereits vorbereitet, ohne Wartezeit.')));
   }
 
   function renderIngredients() {
@@ -232,7 +270,7 @@ export function openDish(dishId, { item = null, onSave = null, saveLabel = 'Übe
     const fresh = getDish();
     if (fresh) dish = { ...fresh, gone: false };
     else if (!dish.manual) dish = { ...dish, gone: true };
-    renderAvail(); renderIngredients(); renderOptions(); updateFoot();
+    renderAvail(); renderStock(); renderIngredients(); renderOptions(); updateFoot();
   }
 
   function build() {
@@ -248,6 +286,7 @@ export function openDish(dishId, { item = null, onSave = null, saveLabel = 'Übe
       id: item?.id || uid('i'), dishId: dish.id, name: dish.name, category: dish.category, country: dish.country || '',
       sizeId: size?.id ?? null, sizeName: size?.name ?? null, qty: st.qty, ice: dish.ice ? st.ice : null,
       options, optionLabels, note: noteEl.value.trim(),
+      stockQty: Math.min(st.qty, readyFor(view(), dish, size?.id ?? null)),
     };
     // Gericht entfernt: Konfiguration der bestehenden Position unverändert lassen
     if (dish.gone && item) Object.assign(base, { sizeId: item.sizeId, sizeName: item.sizeName, ice: item.ice, options: item.options || {}, optionLabels: item.optionLabels || [] });
@@ -261,7 +300,10 @@ export function openDish(dishId, { item = null, onSave = null, saveLabel = 'Übe
     sh.close('save');
     if (onSave) { onSave(it); return; }
     const same = cart.items.find((x) => sameConfig(x, it));
-    if (same) same.qty = Math.min(99, same.qty + it.qty); else cart.items.push(it);
+    if (same) {
+      same.qty = Math.min(99, same.qty + it.qty);
+      same.stockQty = Math.min(same.qty, readyFor(view(), getDish(), same.sizeId));
+    } else cart.items.push(it);
     saveCart();
     emit('added', it);
     toast('Zum Warenkorb hinzugefügt', { message: `${it.qty}× ${it.name}`, icon: 'basket', ms: 2400, onClick: () => S.openCart?.() });

@@ -1,8 +1,8 @@
 // Gerichte: Übersicht nach Kategorie, Rezeptansicht, Bearbeiten-Blatt, Zutatenauswahl.
 
 import { h, now, uid, flag, countryName, COUNTRIES, CATEGORIES, DRINK_CATEGORIES, categoryById } from '../shared/core.js';
-import { dishAvailability, ingredientLines, emptyDish, isManual, MANUAL_PREFIX, itemDetails } from '../shared/model.js';
-import { sheet, alert, confirm, toast, iconEl, icon, segmented, switchEl, pickImage, photo, section, cell } from '../shared/ui.js';
+import { dishAvailability, ingredientLines, emptyDish, isManual, MANUAL_PREFIX, itemDetails, readyTotal } from '../shared/model.js';
+import { sheet, alert, confirm, toast, iconEl, icon, segmented, switchEl, pickImage, photo, section, cell, stepper } from '../shared/ui.js';
 import {
   app, largeTitle, emptyState, selectEl, liveSheet, formRow, actionCell, fillAfter, keepScroll, barButton,
   norm, byName, put, ingredientById, createIngredient, findIngredientByName,
@@ -23,7 +23,88 @@ export function dishPhoto(imageId, cls = '', ph = 'photo') {
 }
 
 const catIcon = (id) => categoryById(id)?.icon || 'forkKnife';
+
+/** Bild eines Gerichts; ohne Foto eine nach Kategorie getönte Fläche mit Flagge bzw. Kategoriesymbol. */
+function dishArt(d, cls) {
+  const src = d.imageId && app.sync.images.get(d.imageId);
+  if (src) return h('div', { class: `ph ${cls}` }, h('img', { src, alt: '', decoding: 'async' }));
+  const el = h('div', { class: `ph k-art k-art-${d.category} ${cls}` },
+    d.country ? h('span', { class: 'k-art-flag' }, flag(d.country)) : iconEl(catIcon(d.category)));
+  if (d.imageId) {
+    app.sync.getImage(d.imageId).then((url) => {
+      if (!url) return;
+      el.className = `ph ${cls}`;
+      el.replaceChildren(h('img', { src: url, alt: '', decoding: 'async' }));
+    });
+  }
+  return el;
+}
 const minutes = (m) => (m ? `${m} Min.` : '');
+
+// ---------- Vorrat (vorbereitete Einheiten) ----------
+
+/** Schlüssel für dish.ready: je Größe die Größen-ID, ohne Größen '_'. */
+export function readyKeys(dish) {
+  return dish?.sizes?.length ? dish.sizes.map((s, i) => ({ key: s.id, name: s.name || `Größe ${i + 1}` })) : [{ key: '_', name: 'Einheiten' }];
+}
+const readyOf = (dish, key) => Math.max(0, Math.floor(+(dish?.ready?.[key] || 0)));
+
+/** Kurztext für Karten: „Schälchen 2 · Schale 1“ bzw. „3“. */
+export function readySummary(dish) {
+  if (!readyTotal(dish)) return '';
+  if (!dish.sizes?.length) return String(readyOf(dish, '_'));
+  return readyKeys(dish).filter((k) => readyOf(dish, k.key) > 0).map((k) => `${k.name} ${readyOf(dish, k.key)}`).join(' · ');
+}
+
+/** Vorrat eines Gerichts sofort ändern (ohne Bearbeiten-Blatt). */
+export function setReady(dishId, key, n) {
+  const dish = app.view.dishes.get(dishId);
+  if (!dish) return;
+  const copy = { ...structuredClone(dish), ready: { ...(dish.ready || {}), [key]: Math.max(0, Math.floor(n)) }, updatedAt: now() };
+  app.sync.mutate((d) => { d.menu.dishes[dishId] = copy; });
+  app.rebuild();
+}
+
+/** Zeilen mit Stepper je Größe. get(key) liefert den Wert, set(key, n) speichert. */
+function readyRows(dish, get, set) {
+  const steppers = new Map();
+  const rows = readyKeys(dish).map((k) => {
+    const st = stepper(get(k.key), { min: 0, max: 999, onChange: (n) => set(k.key, n) });
+    st.classList.add('k-ready-stepper');
+    st.querySelectorAll('button')[0]?.setAttribute('aria-label', `${k.name}: weniger`);
+    st.querySelectorAll('button')[1]?.setAttribute('aria-label', `${k.name}: mehr`);
+    steppers.set(k.key, st);
+    return h('div', { class: 'cell k-ready-row', dataset: { key: k.key } },
+      h('div', { class: 'cell-body cell-title' }, dish.sizes?.length ? k.name : 'Vorbereitet'), st);
+  });
+  return { rows, steppers };
+}
+
+const READY_FOOT = 'Vorbereitete Einheiten werden am Bestellgerät angezeigt und bei Eingang einer Bestellung automatisch abgezogen.';
+
+/** Kleines Blatt zum schnellen Ändern des Vorrats. */
+export function openReadySheet(dishId) {
+  const dish = app.view.dishes.get(dishId);
+  if (!dish) return;
+  const { rows, steppers } = readyRows(dish, (k) => readyOf(dish, k), (k, n) => setReady(dishId, k, n));
+  let unlisten = () => {};
+  const api = sheet({
+    title: 'Vorbereitet',
+    body: [
+      h('div', { class: 'k-ready-head' }, dish.country ? h('span', { class: 'k-flag' }, flag(dish.country)) : null, h('span', null, dish.name)),
+      section(null, rows, READY_FOOT),
+    ],
+    left: null,
+    right: { text: 'Fertig', bold: true },
+    onClose: () => unlisten(),
+  });
+  api.el.classList.add('k-ready-sheet');
+  unlisten = liveSheet(() => {
+    const cur = app.view.dishes.get(dishId);
+    if (!cur) { api.close(); return; }
+    for (const [k, st] of steppers) if (st.get() !== readyOf(cur, k)) st.set(readyOf(cur, k));
+  });
+}
 
 // ---------- Übersicht ----------
 
@@ -44,7 +125,7 @@ export function dishesView() {
       dataset: { dish: d.id }, onclick: () => openRecipe({ dishId: d.id }), onkeydown: (e) => { if (e.key === 'Enter') openRecipe({ dishId: d.id }); },
     },
     h('div', { class: 'k-dish-media' },
-      dishPhoto(d.imageId, 'k-dish-ph', catIcon(d.category)),
+      dishArt(d, 'k-dish-ph'),
       h('button', { class: 'k-dish-edit', 'aria-label': `${d.name} bearbeiten`, onclick: (e) => { e.stopPropagation(); openDishEditor(d.id); } }, h('span', { html: icon('pencil') })),
       d.hidden ? h('span', { class: 'k-dish-hidden' }, 'Ausgeblendet') : null),
     h('div', { class: 'k-dish-body' },
@@ -52,7 +133,16 @@ export function dishesView() {
       h('div', { class: 'k-dish-meta' }, [cat?.single, minutes(d.prepMinutes), d.sizes?.length ? `${d.sizes.length} Größen` : ''].filter(Boolean).join(' · ')),
       d.description ? h('div', { class: 'k-dish-desc' }, d.description) : null,
       h('div', { class: `k-avail ${av.available ? 'ok' : 'no'}` }, h('i'),
-        h('span', null, av.available ? 'Verfügbar' : `Nicht verfügbar – es fehlt: ${av.missing.join(', ')}`))));
+        h('span', null, av.available ? 'Verfügbar' : `Nicht verfügbar – es fehlt: ${av.missing.join(', ')}`)),
+      readyButton(d)));
+  }
+
+  function readyButton(d) {
+    const sum = readySummary(d);
+    return h('button', {
+      class: `k-ready${sum ? ' has' : ''}`, 'aria-label': `Vorbereitet für ${d.name} ändern`,
+      onclick: (e) => { e.stopPropagation(); openReadySheet(d.id); },
+    }, iconEl('bag'), h('span', { class: 'k-ready-l' }, 'Vorbereitet'), h('span', { class: 'k-ready-v num' }, sum || 'keine'), iconEl('chevronRight', 'k-ready-chev'));
   }
 
   function render(force) {
@@ -124,6 +214,10 @@ export function openRecipe({ dishId, item, order }) {
         dish && !manual ? h('span', { class: `k-chip ${av.available ? 'ok' : 'no'}` }, iconEl(av.available ? 'checkCircle' : 'warning'), av.available ? 'Verfügbar' : 'Nicht verfügbar') : null,
         dish?.hidden ? h('span', { class: 'k-chip' }, 'Im Menü ausgeblendet') : null),
       dish?.description ? h('p', { class: 'k-rdesc' }, dish.description) : null));
+
+    if (dish && !manual) {
+      parts.push(section('Vorbereitet', readyRows(dish, (k) => readyOf(dish, k), (k, n) => setReady(dish.id, k, n)).rows, READY_FOOT));
+    }
 
     if (item) {
       const det = itemDetails(item);
@@ -299,7 +393,8 @@ export function openDishEditor(dishId, { category } = {}) {
   const secOpts = h('div');
   const secDrink = h('div');
   const secMore = h('div');
-  body.append(secHero, secGeneral, secSizes, secIngr, secSteps, secOpts, secDrink, secMore);
+  const secReady = h('div');
+  body.append(secHero, secGeneral, secSizes, secReady, secIngr, secSteps, secOpts, secDrink, secMore);
 
   // --- Foto, Name, Beschreibung ---
   const nameInput = h('input', { class: 'k-ed-name', placeholder: 'Name', value: d.name, maxlength: '80', autocomplete: 'off', enterkeyhint: 'next', 'aria-label': 'Name', oninput: (e) => { d.name = e.target.value; nameInput.classList.remove('invalid'); } });
@@ -387,6 +482,14 @@ export function openDishEditor(dishId, { category } = {}) {
     sizesFoot.textContent = d.sizes.length
       ? 'Die Standardgröße ist am Bestellgerät vorausgewählt. Mengen der Zutaten werden je Größe angegeben.'
       : 'Ohne Portionsgrößen gilt eine Menge je Zutat.';
+    renderReady();
+  }
+
+  // --- Vorrat ---
+  function renderReady() {
+    d.ready ||= {};
+    const { rows } = readyRows(d, (k) => readyOf(d, k), (k, n) => { d.ready[k] = n; });
+    secReady.replaceChildren(section('Vorrat', rows, READY_FOOT));
   }
 
   // --- Zutaten ---
@@ -568,6 +671,12 @@ export function openDishEditor(dishId, { category } = {}) {
         out.imageId = null;
       }
       out.id = orig?.id || uid('d');
+      // Vorrat: unveränderte Werte vom aktuellen Stand übernehmen (Abbuchungen während der Bearbeitung nicht überschreiben)
+      const latest = app.view.dishes.get(out.id)?.ready || {};
+      out.ready = Object.fromEntries(readyKeys(out).map(({ key }) => {
+        const v = readyOf(d, key);
+        return [key, v === readyOf(orig, key) ? readyOf({ ready: latest }, key) : v];
+      }));
       out.updatedAt = now();
       app.sync.mutate((doc) => { doc.menu.dishes[out.id] = out; });
       a.close('save');

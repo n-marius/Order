@@ -1,7 +1,7 @@
 // Automatische Empfangsbestätigung (Ack) und Signale bei neuen Ereignissen.
 
 import { now, fmtTime } from '../shared/core.js';
-import { answerText } from '../shared/model.js';
+import { answerText, stockKey, readyCount } from '../shared/model.js';
 import { chime } from '../shared/sound.js';
 import { toast } from '../shared/ui.js';
 import { app } from './ctx.js';
@@ -11,7 +11,15 @@ const LATE_ACK_MS = 45000;
 
 // ---------- Empfang ----------
 
-/** Setzt ackRev für jede Bestellung, deren Revision noch nicht bestätigt ist (ein gesammeltes mutate). */
+export const STOCK_REASON = 'Vorrat nicht ausreichend, da gleichzeitig mehrere Bestellungen eingegangen sind. Bitte erneut bestellen.';
+
+/**
+ * Ein Durchlauf je Datenereignis, alles in einem mutate:
+ *  - ackRev für jede Bestellung mit noch nicht bestätigter Revision setzen,
+ *  - beim ersten Eingang Vorrat (dish.ready) abbuchen; reicht er für die gemeinsam eingegangenen Positionen
+ *    eines Gerichts/einer Größe nicht, werden alle diese Positionen storniert,
+ *  - Einheiten abbestellter oder von der Küche stornierter Positionen zurückbuchen.
+ */
 export function autoAck() {
   const { view, sync } = app;
   const todo = [];
@@ -21,15 +29,100 @@ export function autoAck() {
     const rev = o.rev || 1;
     if (Math.max(merged, own) < rev) todo.push({ o, rev, first: merged === 0 && own === 0 });
   }
-  if (!todo.length) return;
+
+  // Rückbuchungen
+  const returns = [];
+  for (const o of view.orders.values()) {
+    const st = view.status.get(o.id);
+    if (!st) continue;
+    for (const it of o.items || []) {
+      const is = st.items.get(it.id);
+      if ((is?.fromStock || 0) > 0 && !is.stockReturned && (o.cancelled || it.cancelled || is.state === 'storno')) returns.push({ o, it, qty: is.fromStock });
+    }
+  }
+
+  // Abbuchungen: neu eingegangene Positionen je Gericht und Größe bündeln
+  const groups = new Map();
+  for (const { o, first } of todo) {
+    if (!first || o.cancelled) continue;
+    for (const it of o.items || []) {
+      const qty = Math.min(+it.stockQty || 0, +it.qty || 1);
+      if (it.cancelled || qty <= 0) continue;
+      const key = `${it.dishId}|${stockKey(it.sizeId)}`;
+      if (!groups.has(key)) groups.set(key, { dishId: it.dishId, sizeId: it.sizeId, sum: 0, entries: [] });
+      const g = groups.get(key);
+      g.sum += qty;
+      g.entries.push({ o, it, qty });
+    }
+  }
+
+  if (!todo.length && !returns.length) return;
+  const stornos = [];
+  const t = now();
   sync.mutate((d) => {
-    for (const { o, rev } of todo) {
-      const s = (d.status[o.id] ||= { ackRev: 0, items: {} });
+    const copies = new Map();
+    const dishOf = (id) => {
+      if (copies.has(id)) return copies.get(id);
+      const own = d.menu.dishes[id];
+      const merged = view.dishes.get(id);
+      const base = own && !own.deleted && (own.updatedAt || 0) >= (merged?.updatedAt || 0) ? own : merged;
+      const c = base ? { ...structuredClone(base), ready: { ...(base.ready || {}) } } : null;
+      copies.set(id, c);
+      return c;
+    };
+    const statusOf = (oid) => {
+      const s = (d.status[oid] ||= { ackRev: 0, items: {} });
       s.items ||= {};
+      return s;
+    };
+    const itemOf = (o, it) => {
+      const s = statusOf(o.id);
+      if (!s.items[it.id]) {
+        const m = view.status.get(o.id)?.items.get(it.id);
+        s.items[it.id] = m ? structuredClone(m) : { state: 'neu', reason: '', questions: [], updatedAt: 0 };
+      }
+      s.updatedAt = t;
+      return s.items[it.id];
+    };
+
+    for (const { o, rev } of todo) {
+      const s = statusOf(o.id);
       s.ackRev = Math.max(s.ackRev || 0, rev);
-      s.updatedAt = now();
+      s.updatedAt = t;
+    }
+    for (const r of returns) {
+      const dish = dishOf(r.it.dishId);
+      if (dish) dish.ready[stockKey(r.it.sizeId)] = readyCount(dish, r.it.sizeId) + r.qty;
+      const is = itemOf(r.o, r.it);
+      is.stockReturned = true;
+      is.updatedAt = t;
+    }
+    for (const g of groups.values()) {
+      const dish = dishOf(g.dishId);
+      const avail = dish ? readyCount(dish, g.sizeId) : 0;
+      if (dish && g.sum <= avail) {
+        dish.ready[stockKey(g.sizeId)] = avail - g.sum;
+        for (const e of g.entries) {
+          const is = itemOf(e.o, e.it);
+          is.fromStock = e.qty;
+          is.stockReturned = false;
+          is.updatedAt = t;
+        }
+      } else {
+        for (const e of g.entries) {
+          const is = itemOf(e.o, e.it);
+          Object.assign(is, { state: 'storno', reason: STOCK_REASON, fromStock: 0, stockReturned: false, updatedAt: t });
+          stornos.push(e);
+        }
+      }
+    }
+    for (const [id, c] of copies) {
+      if (!c) continue;
+      c.updatedAt = t;
+      d.menu.dishes[id] = c;
     }
   });
+
   for (const { o, first } of todo) {
     if (!first || o.cancelled || now() - (o.createdAt || 0) <= LATE_ACK_MS) continue;
     sync.queueNotify({
@@ -37,6 +130,15 @@ export function autoAck() {
       title: 'Bestellung empfangen',
       body: `Die Bestellung von ${fmtTime(o.createdAt)} wurde von der Küche empfangen.`,
       tag: `ack-${o.id}`,
+      url: './',
+    });
+  }
+  for (const { o, it } of stornos) {
+    sync.queueNotify({
+      to: { deviceIds: [o.deviceId] },
+      title: `Storniert: ${it.name}`,
+      body: STOCK_REASON,
+      tag: `storno-${o.id}-${it.id}`,
       url: './',
     });
   }

@@ -8,6 +8,7 @@ import { sheet, confirm, actionSheet, toast, iconEl } from '../shared/ui.js';
 import { S, view, myOrders, itemsSummary, room } from './store.js';
 import { openDish } from './menu.js';
 import { isOverdue, orderSending, kitchenText } from './watch.js';
+import { stockLine } from './stock.js';
 
 const STATE_TEXT = { neu: 'Bestellt', fertig: 'Fertig', storno: 'Storniert', nachfrage: 'Nachfrage', abbestellt: 'Abbestellt' };
 const STATE_BADGE = { neu: '', fertig: 'green', storno: 'red', nachfrage: 'yellow', abbestellt: '' };
@@ -113,7 +114,8 @@ function itemRow(o, it, orderEditable) {
           isManual(it.dishId) ? h('span', { class: 'c2' }, ` · ${categoryById(it.category)?.single || ''}`) : null,
           fl ? h('span', { class: 'inline-flag' }, fl) : null),
         details.length ? h('div', { class: 'oitem-det' }, details.join(' · ')) : null,
-        it.note ? h('div', { class: 'oitem-note' }, it.note) : null),
+        it.note ? h('div', { class: 'oitem-note' }, it.note) : null,
+        state === 'abbestellt' || state === 'storno' ? null : stockLine(st?.fromStock ?? it.stockQty ?? 0, it.qty, 'stock-line oitem-stock')),
       h('span', { class: `badge ${STATE_BADGE[state]}` }, STATE_TEXT[state]),
       canEdit ? h('button', { class: 'more-btn', 'aria-label': `${it.name}: Aktionen`, onclick: () => itemMenu(o.id, it.id) }, iconEl('ellipsis')) : null),
     state === 'storno' ? h('div', { class: 'ibox red' }, iconEl('xCircle'),
@@ -218,6 +220,7 @@ function editItem(orderId, itemId) {
   openDish(it.dishId, {
     item: it,
     saveLabel: 'Änderung senden',
+    stock: false,
     onSave: async (n) => {
       const cur = S.sync.local.orders[orderId]?.items.find((x) => x.id === itemId);
       if (!cur) return;
@@ -229,6 +232,8 @@ function editItem(orderId, itemId) {
         if (!x) return;
         Object.assign(x, {
           qty: n.qty, sizeId: n.sizeId, sizeName: n.sizeName, ice: n.ice, options: n.options, optionLabels: n.optionLabels, note: n.note,
+          // Vorrat wurde beim Eingang verbucht: nie erhöhen, bei kleinerer Menge begrenzen
+          stockQty: Math.min(x.stockQty || 0, n.qty),
         });
       });
       toast('Änderung gesendet', { message: texts.join('; '), icon: 'pencil', ms: 3000 });

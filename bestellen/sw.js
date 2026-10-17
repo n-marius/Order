@@ -10,6 +10,7 @@ self.TAFEL_ASSETS = [
   './orders.js',
   './watch.js',
   './settings.js',
+  './stock.js',
   './app.css',
   './manifest.webmanifest',
   './icons/icon-192.png',

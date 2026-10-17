@@ -1,7 +1,9 @@
 /* Tafel – Bestellen. Ergänzt shared/styles.css. */
 
 :root {
-  --tint: #007AFF;
+  --tint: #FF9500;
+  --tint-ink: #C45500;      /* Orange für Text und Linien auf hellem Grund (Kontrast ≥ 4,5:1) */
+  --green-ink: #248A3D;     /* Grün für Text auf hellem Grund */
   --card-shadow: 0 0.5px 1px rgba(0, 0, 0, 0.05), 0 4px 14px rgba(0, 0, 0, 0.06);
   --card-shadow-press: 0 0.5px 1px rgba(0, 0, 0, 0.05), 0 2px 8px rgba(0, 0, 0, 0.05);
   --sidebar-bg: #ffffff;
@@ -11,7 +13,9 @@
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --tint: #0A84FF;
+    --tint: #FF9F0A;
+    --tint-ink: #FF9F0A;
+    --green-ink: #30D158;
     --card-shadow: 0 0 0 0.5px rgba(255, 255, 255, 0.04);
     --card-shadow-press: 0 0 0 0.5px rgba(255, 255, 255, 0.04);
     --sidebar-bg: #1c1c1e;
@@ -20,7 +24,9 @@
   }
 }
 :root[data-theme="dark"] {
-  --tint: #0A84FF;
+  --tint: #FF9F0A;
+  --tint-ink: #FF9F0A;
+  --green-ink: #30D158;
   --card-shadow: 0 0 0 0.5px rgba(255, 255, 255, 0.04);
   --card-shadow-press: 0 0 0 0.5px rgba(255, 255, 255, 0.04);
   --sidebar-bg: #1c1c1e;
@@ -144,7 +150,7 @@ html, body { height: 100%; overflow: hidden; }
   display: flex; align-items: center; justify-content: center; color: var(--tint);
   background:
     radial-gradient(120% 90% at 20% 10%, color-mix(in srgb, var(--tint) 20%, transparent), transparent 60%),
-    linear-gradient(160deg, color-mix(in srgb, var(--tint) 12%, var(--bg2)), color-mix(in srgb, var(--indigo) 10%, var(--bg2)));
+    linear-gradient(160deg, color-mix(in srgb, var(--tint) 14%, var(--bg2)), color-mix(in srgb, var(--red) 7%, var(--bg2)));
 }
 .manual-art .icon { width: 30%; height: 30%; max-width: 64px; max-height: 64px; --icon-stroke: 1.4; }
 
@@ -435,3 +441,76 @@ html, body { height: 100%; overflow: hidden; }
 
 /* Banner unterhalb des Offline-Bands */
 body:has(.offline-band:not([hidden])) .toasts { top: calc(48px + var(--safe-t)); }
+
+/* ---------- Vorrat: sofort verfügbar ---------- */
+
+.bolt-wrap { display: inline-flex; }
+.icon.bolt { width: 1em; height: 1em; vertical-align: -0.12em; }
+.ready-badge {
+  position: absolute; left: 10px; bottom: 10px; display: inline-flex; align-items: center; gap: 5px;
+  height: 30px; padding: 0 4px 0 9px; border-radius: 15px; max-width: calc(100% - 20px);
+  background: var(--green); color: #fff; font-size: 13px; font-weight: 600; letter-spacing: -0.01em; white-space: nowrap;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--green) 45%, transparent), 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+.ready-icon { display: inline-flex; }
+.ready-icon .icon { width: 14px; height: 14px; }
+.ready-text { overflow: hidden; text-overflow: ellipsis; }
+.ready-count {
+  min-width: 22px; height: 22px; padding: 0 7px; border-radius: 11px; display: inline-flex; align-items: center; justify-content: center;
+  background: rgba(255, 255, 255, 0.95); color: #1d7a35; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums;
+}
+.dish-ready-sizes { margin-top: 4px; font-size: 13px; line-height: 18px; font-weight: 600; color: var(--green); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.dish-stock {
+  display: flex; align-items: center; gap: 12px; margin: 16px 24px 0; padding: 12px 16px; border-radius: 14px;
+  background: color-mix(in srgb, var(--green) 13%, var(--bg2));
+}
+.dish-stock-icon { flex: none; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--green); color: #fff; }
+.dish-stock-icon .icon { width: 17px; height: 17px; }
+.dish-stock-title { font-size: 17px; line-height: 22px; font-weight: 600; }
+.dish-stock:not(.none) .dish-stock-title { color: var(--green); }
+.dish-stock-sub { font-size: 15px; line-height: 20px; color: var(--label2); }
+.dish-stock.none { background: var(--fill4); }
+.dish-stock.none > .icon { width: 22px; height: 22px; color: var(--label2); flex: none; }
+.dish-stock.none .dish-stock-title { font-size: 15px; line-height: 20px; font-weight: 500; color: var(--label2); }
+.seg-stock { display: grid; margin-top: 7px; text-align: center; font-size: 13px; line-height: 18px; font-variant-numeric: tabular-nums; }
+.seg-stock-n { display: inline-flex; align-items: center; justify-content: center; gap: 3px; color: var(--green); font-weight: 600; }
+.seg-stock-none { color: var(--label3); }
+
+.stock-line { display: flex; align-items: center; gap: 5px; margin-top: 4px; font-size: 15px; line-height: 20px; font-weight: 600; color: var(--green); }
+.stock-line .icon { width: 14px; height: 14px; }
+
+/* Storno-Grund gut lesbar: Text in Etikettfarbe, nur Titel und Symbol rot */
+.ibox.red, .ibox.yellow { color: var(--label); }
+.ibox .grow > div:not(.ibox-title) { overflow-wrap: anywhere; }
+
+@media (max-width: 600px) {
+  .ready-badge { left: 8px; bottom: 8px; height: 26px; padding: 0 3px 0 7px; gap: 4px; font-size: 12px; }
+  .ready-count { min-width: 20px; height: 20px; font-size: 12px; padding: 0 6px; }
+  .dish-stock { margin-left: 20px; margin-right: 20px; }
+}
+@media (max-width: 380px) { .ready-text { display: none; } }
+
+/* ---------- Akzentfarbe Orange: Lesbarkeit ---------- */
+
+/* Text, Symbole und Linien in Akzentfarbe: dunkleres Orange im Hellmodus */
+.barbtn, .link-btn:not(.red), .btn.plain:not(.cart-clear), .btn.tinted, .cell.action, .reveal-btn, .tint,
+.sb-item:not(.on) .icon, .dish-add, .more-btn, .cart-btn, .manual-art, .chip.on, .setup-toggle { color: var(--tint-ink); }
+.chip.on { border-color: var(--tint-ink); }
+.input:focus, .textarea:focus { box-shadow: 0 0 0 2px color-mix(in srgb, var(--tint) 55%, transparent); }
+
+/* Weiße Schrift auf orangefarbenen Flächen: halbfett */
+.sb-item.on { font-weight: 600; }
+.btn:not(.plain):not(.tinted):not(.gray), .order-btn { font-weight: 600; letter-spacing: -0.01em; }
+.add-btn .icon, .cart-btn .icon { --icon-stroke: 2.2; }
+.add-btn .icon { --icon-stroke: 2.4; }
+
+/* Nachfrage (gelb) klar vom orangefarbenen Akzent trennen: neutrale Auswahl und Schaltfläche */
+.qbox .chip.on { background: var(--label); border-color: var(--label); color: var(--bg2); }
+.qbox .btn { background: var(--label); color: var(--bg2); }
+.qbox .btn[disabled] { background: color-mix(in srgb, var(--label) 10%, transparent); color: var(--label3); }
+
+.btn.plain.cart-clear { color: var(--red); }
+/* Grüner Text gut lesbar */
+.stock-line, .seg-stock-n, .dish-stock:not(.none) .dish-stock-title, .dish-ready-sizes, .ack.received, .answer > .icon { color: var(--green-ink); }
+.oitem .badge.green { color: var(--green-ink); }

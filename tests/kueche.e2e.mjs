@@ -9,6 +9,7 @@ import { chromium } from '/opt/node-tools/node_modules/playwright/index.mjs';
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import * as TPL from '../kueche/vorlage.js';
 
 const PORT = 8101;
 const APP = `http://localhost:${PORT}/kueche/`;
@@ -381,6 +382,144 @@ async function main() {
   await shot(page, 'ipad-light-13-einstellungen');
   const code = await page.locator('.k-code').textContent();
   check(/^TAFEL1:/.test(code), 'Einrichtungscode angezeigt');
+
+  // ---------- Vorlage ----------
+  log('Vorlage importieren');
+  await nav(page, 'ingredients');
+  await page.locator('.k-actions [aria-label="Zutat hinzufügen"]').click();
+  await alertInput(page, 'vanilleeis', 'Hinzufügen');
+  const userIng = await until(async () => {
+    const f = fileOf(await state(), GID, KFILE);
+    return f && Object.values(f.menu.ingredients).find((i) => i.name === 'vanilleeis');
+  }, 'Zutat „vanilleeis“ im Gist');
+  const olive = Object.values(fileOf(await state(), GID, KFILE).menu.ingredients).find((i) => i.name === 'Olivenöl');
+  await nav(page, 'settings');
+  await page.getByRole('button', { name: 'Vorlage importieren' }).click();
+  const conf = page.locator('.alert-root.in');
+  await conf.waitFor();
+  const expectIngs = TPL.INGREDIENTS.length - 2;
+  check((await conf.textContent()).includes(`${TPL.DISHES.length} Gerichte und ${expectIngs} Zutaten`), `Bestätigung nennt ${TPL.DISHES.length} Gerichte und ${expectIngs} Zutaten`);
+  await shot(page, 'ipad-light-15-vorlage-bestaetigen');
+  await conf.getByRole('button', { name: 'Importieren' }).click();
+  await page.locator('.toast-title', { hasText: `${TPL.DISHES.length} Gerichte und ${expectIngs} Zutaten angelegt` }).waitFor({ timeout: 5000 })
+    .then(() => check(true, 'Banner mit Ergebnis'), () => check(false, 'Banner mit Ergebnis'));
+  const imp = await until(async () => {
+    const f = fileOf(await state(), GID, KFILE);
+    return f && TPL.DISHES.every((d) => f.menu.dishes[d.id]) && f;
+  }, 'Gerichte der Vorlage im Gist');
+  const names = Object.values(imp.menu.ingredients).filter((i) => !i.deleted).map((i) => i.name.toLowerCase());
+  check(names.length === new Set(names).size, 'Keine doppelten Zutaten');
+  check(!imp.menu.ingredients['vz-olivenoel'] && !imp.menu.ingredients['vz-vanilleeis'], 'Gleichnamige Zutaten nicht neu angelegt');
+  const cake = imp.menu.dishes['vd-chocolate-cake'];
+  check(cake.options[0].choices.find((c) => c.id === 'c-vanille').ingredientId === userIng.id, 'Vorhandene Zutat „vanilleeis“ im Gericht verknüpft');
+  check(!!olive, 'Vorhandenes Olivenöl bleibt bestehen');
+
+  log('Erneuter Import (Idempotenz, gelöschte Gerichte bleiben gelöscht)');
+  await nav(page, 'dishes');
+  await page.locator('.k-dish[data-dish="vd-pralinen"] .k-dish-edit').click();
+  await ed.waitFor();
+  await ed.getByRole('button', { name: 'Gericht löschen' }).click();
+  await page.locator('.alert-root.in').getByRole('button', { name: 'Löschen' }).click();
+  await page.waitForSelector(sheetSel('k-editor-sheet'), { state: 'detached' });
+  await until(async () => fileOf(await state(), GID, KFILE).menu.dishes['vd-pralinen']?.deleted, 'Pralinen gelöscht');
+  const before = fileOf(await state(), GID, KFILE);
+  await nav(page, 'settings');
+  await page.getByRole('button', { name: 'Vorlage importieren' }).click();
+  await page.locator('.alert-root.in', { hasText: 'Vorlage bereits vorhanden' }).waitFor();
+  check(true, 'Zweiter Import: nichts anzulegen');
+  await page.locator('.alert-root.in').getByRole('button', { name: 'OK' }).click();
+  await sleep(1200);
+  const after = fileOf(await state(), GID, KFILE);
+  check(after.menu.dishes['vd-pralinen'].deleted === true, 'Gelöschtes Gericht bleibt gelöscht');
+  check(Object.keys(after.menu.ingredients).length === Object.keys(before.menu.ingredients).length, 'Keine weiteren Zutaten angelegt');
+
+  log('Lakritz ohne Sorten');
+  await nav(page, 'ingredients');
+  await page.locator('.k-toolbar input[type="search"]').fill('Lakritz');
+  for (const n of ['Zitrone', 'Yuzu', 'Vanille']) await page.locator('.k-ing-row', { hasText: `Lakritz von Bülow ${n}` }).locator('input[role="switch"]').click();
+  await page.locator('.k-toolbar input[type="search"]').fill('');
+  await nav(page, 'dishes');
+  await page.locator('.k-dish.unavailable[data-dish="vd-lakritz"]').waitFor({ timeout: 8000 })
+    .then(() => check(true, 'Lakritz ohne vorhandene Sorte ist nicht verfügbar'), () => check(false, 'Lakritz ohne vorhandene Sorte ist nicht verfügbar'));
+  check((await page.locator('.k-dish[data-dish="vd-lakritz"] .k-avail').textContent()).includes('Sorte: keine Auswahl vorhanden'), 'Grund „Sorte: keine Auswahl vorhanden“');
+
+  // ---------- Vorrat ----------
+  log('Vorrat');
+  const readyOf = async (id, key) => +(fileOf(await state(), GID, KFILE).menu.dishes[id]?.ready?.[key] || 0);
+  await page.locator('.k-dish[data-dish="vd-polvorones"] .k-ready').click();
+  const rs = page.locator(sheetSel('k-ready-sheet'));
+  await rs.waitFor();
+  for (let i = 0; i < 3; i++) await rs.locator('.k-ready-row[data-key="s1"] button[aria-label$="mehr"]').click();
+  await rs.locator('.k-ready-row[data-key="s2"] button[aria-label$="mehr"]').click();
+  await until(async () => (await readyOf('vd-polvorones', 's1')) === 3, 'Vorrat s1 = 3');
+  check(true, 'Vorrat über das Schnellblatt gesetzt');
+  await shot(page, 'ipad-light-16-vorrat-blatt');
+  await rs.getByRole('button', { name: 'Fertig' }).click();
+  await page.waitForSelector(sheetSel('k-ready-sheet'), { state: 'detached' });
+  check((await page.locator('.k-dish[data-dish="vd-polvorones"] .k-ready-v').textContent()).includes('1 Stück 3'), 'Karte zeigt „1 Stück 3“');
+  await page.locator('.k-dish[data-dish="vd-polvorones"]').scrollIntoViewIfNeeded();
+  await shot(page, 'ipad-light-17-gerichte-vorrat');
+
+  const polvo = (id, qty, stockQty, extra = {}) => ({ id, dishId: 'vd-polvorones', name: 'Polvorones', category: 'dessert', country: 'ES', sizeId: 's1', sizeName: '1 Stück', qty, ice: null, options: {}, optionLabels: [], note: '', cancelled: false, cancelledAt: null, stockQty, answers: {}, ...extra });
+  const ord = (id, dev, room, items, extra = {}) => ({ id, deviceId: dev, deviceName: room, createdAt: Date.now(), updatedAt: Date.now(), rev: 1, note: '', cancelled: false, cancelledAt: null, changes: [], items, ...extra });
+  const devDoc = (dev, room, orders) => JSON.stringify({ v: 1, device: { id: dev, name: room, role: 'order', updatedAt: Date.now() }, orders: Object.fromEntries(orders.map((o) => [o.id, o])) });
+
+  log('Zwei gleichzeitige Bestellungen übersteigen den Vorrat');
+  await nav(page, 'orders');
+  const oA1 = ord('oA-1', 'oA', 'Arbeitszimmer', [polvo('p1', 2, 2)]);
+  const oB1 = ord('oB-1', 'oB', 'Esszimmer', [polvo('p1', 2, 2)]);
+  await patchGist(GID, { 'dev-oA.json': { content: devDoc('oA', 'Arbeitszimmer', [oA1]) }, 'dev-oB.json': { content: devDoc('oB', 'Esszimmer', [oB1]) } });
+  const stc = await until(async () => {
+    const st = await state();
+    const f = fileOf(st, GID, KFILE);
+    const a = f.status?.['oA-1']; const b = f.status?.['oB-1'];
+    return a?.ackRev === 1 && b?.ackRev === 1 && a.items?.p1?.state === 'storno' && b.items?.p1?.state === 'storno' && { st, f, a, b };
+  }, 'beide Positionen storniert');
+  check(/Vorrat nicht ausreichend/.test(stc.a.items.p1.reason) && /Bitte erneut bestellen/.test(stc.b.items.p1.reason), 'Grund „Vorrat nicht ausreichend …“');
+  check(+stc.f.menu.dishes['vd-polvorones'].ready.s1 === 3, 'Vorrat unverändert (3)');
+  const stLog = await until(async () => { const l = (await state()).notifyLog.filter((n) => n.title === 'Storniert: Polvorones'); return l.length >= 2 && l; }, 'Storno-Meldungen');
+  check(stLog.some((n) => n.to.deviceIds[0] === 'oA') && stLog.some((n) => n.to.deviceIds[0] === 'oB') && stLog.every((n) => /Vorrat nicht ausreichend/.test(n.body)), 'Meldung an beide Geräte mit Grund');
+
+  log('Einzelbestellung im Rahmen des Vorrats');
+  const oA2 = ord('oA-2', 'oA', 'Arbeitszimmer', [polvo('p1', 2, 2), { ...polvo('p2', 1, 0), sizeId: 's3', sizeName: '5 Stück' }]);
+  await patchGist(GID, { 'dev-oA.json': { content: devDoc('oA', 'Arbeitszimmer', [oA1, oA2]) } });
+  const stA = await until(async () => {
+    const f = fileOf(await state(), GID, KFILE);
+    return f.status?.['oA-2']?.items?.p1?.fromStock === 2 && f;
+  }, 'Abbuchung');
+  check(+stA.menu.dishes['vd-polvorones'].ready.s1 === 1, 'Vorrat abgebucht (3 → 1)');
+  check(stA.status['oA-2'].items.p1.state !== 'storno', 'Position nicht storniert');
+  await page.locator('.k-order[data-order="oA-2"] .k-stock', { hasText: 'Vorrat' }).waitFor({ timeout: 8000 })
+    .then(() => check(true, 'Karte zeigt Badge „Vorrat“'), () => check(false, 'Karte zeigt Badge „Vorrat“'));
+  await shot(page, 'ipad-light-18-bestellung-vorrat');
+  await page.locator('.k-order[data-order="oA-2"]').click();
+  await ds.waitFor();
+  check(await ds.locator('.k-istock', { hasText: 'keine Zubereitung erforderlich' }).count() === 1, 'Detailblatt: aus dem Vorrat entnommen');
+  await shot(page, 'ipad-light-19-detail-vorrat');
+  await closeSheet(page, 'k-order-sheet');
+
+  log('Abbestellung bucht zurück');
+  const oA2b = structuredClone(oA2);
+  oA2b.rev = 2; oA2b.items[0].cancelled = true; oA2b.items[0].cancelledAt = Date.now(); oA2b.changes = [{ at: Date.now(), text: 'Polvorones (1 Stück) abbestellt' }];
+  await patchGist(GID, { 'dev-oA.json': { content: devDoc('oA', 'Arbeitszimmer', [oA1, oA2b]) } });
+  const stR = await until(async () => {
+    const f = fileOf(await state(), GID, KFILE);
+    return f.status?.['oA-2']?.items?.p1?.stockReturned === true && f;
+  }, 'Rückbuchung');
+  check(+stR.menu.dishes['vd-polvorones'].ready.s1 === 3, 'Vorrat zurückgebucht (1 → 3)');
+
+  log('Storno durch die Küche bucht zurück');
+  const oA3 = ord('oA-3', 'oA', 'Arbeitszimmer', [polvo('p1', 1, 1)]);
+  await patchGist(GID, { 'dev-oA.json': { content: devDoc('oA', 'Arbeitszimmer', [oA1, oA2b, oA3]) } });
+  await until(async () => fileOf(await state(), GID, KFILE).status?.['oA-3']?.items?.p1?.fromStock === 1, 'Abbuchung oA-3');
+  check((await readyOf('vd-polvorones', 's1')) === 2, 'Vorrat 3 → 2');
+  await page.locator('.k-order[data-order="oA-3"]').click();
+  await ds.waitFor();
+  await ds.locator('.k-item').nth(0).getByRole('button', { name: 'Storno' }).click();
+  await alertInput(page, '', 'Stornieren');
+  await until(async () => fileOf(await state(), GID, KFILE).status?.['oA-3']?.items?.p1?.stockReturned === true, 'Rückbuchung nach Küchen-Storno');
+  check((await readyOf('vd-polvorones', 's1')) === 3, 'Vorrat 2 → 3 nach Storno durch die Küche');
+  await closeSheet(page, 'k-order-sheet');
 
   // ---------- Offline ----------
   log('Offline');

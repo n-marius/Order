@@ -1,20 +1,22 @@
 /* Tafel Küche – App-spezifische Gestaltung. Basis: ../shared/styles.css */
 
 :root {
-  --tint: #FF9500;
+  --tint: #007AFF;
   --tint-contrast: #fff;
   --green-ink: #248a3d;
   --card-shadow: 0 0.5px 1px rgba(0, 0, 0, 0.04), 0 2px 10px rgba(0, 0, 0, 0.05);
   --card-shadow-hi: 0 1px 2px rgba(0, 0, 0, 0.05), 0 10px 30px rgba(0, 0, 0, 0.09);
   --sb-w: 272px;
+  --teal: #0f8fa8;
   --act-ok: color-mix(in srgb, var(--green) 15%, transparent);
   --act-warn: color-mix(in srgb, var(--yellow) 24%, transparent);
   --act-danger: color-mix(in srgb, var(--red) 13%, transparent);
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --tint: #FF9F0A;
+    --tint: #0A84FF;
     --green-ink: #30d158;
+    --teal: #40c8e0;
     --card-shadow: none;
     --card-shadow-hi: 0 10px 30px rgba(0, 0, 0, 0.5);
     --act-ok: color-mix(in srgb, var(--green) 17%, var(--bg2));
@@ -23,8 +25,9 @@
   }
 }
 :root[data-theme="dark"] {
-  --tint: #FF9F0A;
+  --tint: #0A84FF;
   --green-ink: #30d158;
+  --teal: #40c8e0;
   --card-shadow: none;
   --card-shadow-hi: 0 10px 30px rgba(0, 0, 0, 0.5);
   --act-ok: color-mix(in srgb, var(--green) 17%, var(--bg2));
@@ -162,6 +165,17 @@ html, body { height: 100%; overflow: hidden; }
 .k-bar { flex: 1; height: 4px; border-radius: 2px; background: var(--fill3); overflow: hidden; }
 .k-bar i { display: block; height: 100%; border-radius: 2px; background: var(--green); transition: width 0.5s var(--ease); }
 
+/* Vorrat in Bestellungen */
+.k-stock {
+  display: inline-flex; align-items: center; gap: 3px; height: 20px; padding: 0 7px; margin-right: 6px; border-radius: 10px; vertical-align: 1px;
+  font-size: 12px; line-height: 20px; font-weight: 600; letter-spacing: 0; color: var(--teal); background: color-mix(in srgb, var(--teal) 14%, transparent);
+}
+.k-stock .icon { width: 12px; height: 12px; --icon-stroke: 2.2; }
+.badge.k-stock-badge { color: var(--teal); background: color-mix(in srgb, var(--teal) 14%, transparent); }
+.badge.k-changed { color: var(--indigo); background: color-mix(in srgb, var(--indigo) 14%, transparent); }
+.k-istock { display: flex; gap: 6px; align-items: flex-start; margin-top: 7px; font-size: 15px; line-height: 20px; color: var(--teal); font-weight: 500; }
+.k-istock .icon { width: 16px; height: 16px; margin-top: 2px; }
+
 /* ---------- Erledigt ---------- */
 
 .k-done-row { gap: 14px; padding-top: 12px; padding-bottom: 12px; }
@@ -246,7 +260,16 @@ html, body { height: 100%; overflow: hidden; }
 .k-dish:focus-visible { box-shadow: 0 0 0 3px color-mix(in srgb, var(--tint) 50%, transparent); }
 .k-dish-media { position: relative; }
 .k-dish-ph { aspect-ratio: 4 / 3; }
-.k-dish-ph .icon { color: var(--label3); }
+.k-art { --art: var(--gray); background: linear-gradient(150deg, color-mix(in srgb, var(--art) 16%, var(--bg2)), color-mix(in srgb, var(--art) 7%, var(--bg2))); color: color-mix(in srgb, var(--art) 70%, var(--label2)); }
+.k-art-vorspeise { --art: var(--green); }
+.k-art-hauptspeise { --art: var(--orange); }
+.k-art-dessert { --art: #ff2d55; }
+.k-art-getraenk { --art: var(--blue); }
+.k-art-alkohol { --art: var(--indigo); }
+.k-art .icon { width: 30%; height: 30%; max-width: 56px; max-height: 56px; --icon-stroke: 1.4; }
+.k-art-flag { font-size: 54px; line-height: 1; filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.12)); }
+.k-dish.unavailable .k-art { filter: grayscale(0.9); opacity: 0.6; }
+.k-dish-ph:not(.k-art) .icon { color: var(--label3); }
 .k-dish.unavailable .k-dish-ph img { filter: grayscale(0.9); opacity: 0.55; }
 .k-dish.is-hidden .k-dish-ph img { opacity: 0.5; }
 .k-dish-edit { position: absolute; top: 4px; right: 4px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; }
@@ -278,12 +301,35 @@ html, body { height: 100%; overflow: hidden; }
   .k-dish-media { position: static; flex: none; width: 108px; }
   .k-dish-ph { aspect-ratio: auto; width: 100%; height: 100%; min-height: 112px; }
   .k-dish-ph .icon { width: 34px; height: 34px; }
+  .k-art-flag { font-size: 40px; }
   .k-dish-body { padding: 12px 44px 12px 14px; }
   .k-dish-desc { -webkit-line-clamp: 1; }
   .k-avail { padding-top: 6px; }
   .k-dish-edit { top: 2px; right: 2px; }
   .k-dish-edit span, .k-dish-ph:not(:has(img)) + .k-dish-edit span { background: var(--fill3); color: var(--label2); -webkit-backdrop-filter: none; backdrop-filter: none; }
   .k-dish-hidden { left: 6px; top: auto; bottom: 6px; height: 20px; padding: 0 7px; font-size: 11px; }
+}
+
+/* Vorbereitete Einheiten: Zeile auf der Karte, Blatt, Stepper */
+.k-ready {
+  display: flex; align-items: center; gap: 8px; width: auto; min-height: 44px; margin: 12px -14px -14px; padding: 0 12px 0 14px;
+  border-top: 0.5px solid var(--sep); font-size: 13px; line-height: 18px; color: var(--label2); text-align: left; transition: background-color 0.15s;
+}
+.k-ready:active { background: var(--fill4); }
+.k-ready > .icon:first-child { width: 17px; height: 17px; color: var(--label3); }
+.k-ready.has > .icon:first-child { color: var(--teal); }
+.k-ready-l { flex: none; }
+.k-ready-v { flex: 1; min-width: 0; text-align: right; color: var(--label3); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.k-ready.has .k-ready-v { color: var(--label); font-weight: 600; }
+.k-ready-chev { width: 12px; height: 12px; flex: none; color: var(--label3); --icon-stroke: 2.6; }
+.k-ready-sheet { --sheet-w: 460px; }
+.k-ready-head { display: flex; justify-content: center; align-items: baseline; padding: 4px 8px 18px; font-size: 22px; line-height: 28px; font-weight: 700; letter-spacing: -0.02em; text-align: center; }
+.k-ready-row { padding-top: 6px; padding-bottom: 6px; }
+.k-ready-sheet .section { margin-bottom: 4px; }
+.k-ready-sheet .sheet-body { padding-bottom: calc(16px + var(--safe-b)); }
+.k-ready-stepper output { min-width: 40px; }
+@media (max-width: 699px) {
+  .k-ready { margin-right: -44px; margin-top: 8px; margin-bottom: -12px; }
 }
 
 /* ---------- Rezeptansicht ---------- */

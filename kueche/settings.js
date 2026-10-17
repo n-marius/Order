@@ -4,8 +4,9 @@ import { h, now, fmtAgo, makeSetupCode, parseSetupCode, applyTheme, APP_VERSION 
 import { sheet, alert, confirm, prompt, toast, iconEl, segmented, switchEl, section, cell, copyText } from '../shared/ui.js';
 import { pushState, enablePush, sendTestPush, isStandalone } from '../shared/push.js';
 import { chime } from '../shared/sound.js';
-import { app, updateSettings, largeTitle, formRow, actionCell, put } from './ctx.js';
+import { app, updateSettings, largeTitle, formRow, actionCell, put, norm } from './ctx.js';
 import { resetSeen } from './signals.js';
+import { INGREDIENTS, DISHES } from './vorlage.js';
 
 const DEFAULT_API = 'https://api.github.com';
 const TOKEN_HINT = 'Benötigt wird ein Fine-grained Personal Access Token mit der Berechtigung „Gists: Read and write“ (github.com → Settings → Developer settings → Personal access tokens).';
@@ -41,6 +42,64 @@ function textField(value, onCommit, { placeholder = '', type = 'text', mono = fa
     onkeydown: (e) => { if (e.key === 'Enter') e.target.blur(); },
   });
   return i;
+}
+
+// ---------- Vorlage ----------
+
+/**
+ * Plant den Import: Zutaten gleichen Namens werden wiederverwendet, Gerichte nur angelegt, wenn ihre ID
+ * in keinem Küchendokument existiert (auch nicht als gelöschter Eintrag).
+ */
+export function planTemplateImport() {
+  const raw = { dishes: new Set(), ingredients: new Map() };
+  for (const doc of app.sync.docs()) {
+    if (doc?.device?.role !== 'kitchen') continue;
+    for (const id of Object.keys(doc.menu?.dishes || {})) raw.dishes.add(id);
+    for (const [id, ing] of Object.entries(doc.menu?.ingredients || {})) {
+      const prev = raw.ingredients.get(id);
+      if (!prev || (ing.updatedAt || 0) > (prev.updatedAt || 0)) raw.ingredients.set(id, ing);
+    }
+  }
+  const byName = new Map([...app.view.ingredients.values()].map((i) => [norm(i.name), i.id]));
+  const idMap = new Map();
+  const missingIngs = [];
+  for (const ing of INGREDIENTS) {
+    const existing = byName.get(norm(ing.name)) || (app.view.ingredients.has(ing.id) ? ing.id : null);
+    if (existing) idMap.set(ing.id, existing);
+    else { idMap.set(ing.id, ing.id); missingIngs.push(ing); }
+  }
+  const dishes = DISHES.filter((dd) => !raw.dishes.has(dd.id)).map((dd) => {
+    const c = structuredClone(dd);
+    c.ingredients = (c.ingredients || []).map((r) => ({ ...r, ingredientId: idMap.get(r.ingredientId) || r.ingredientId }));
+    for (const g of c.options || []) for (const ch of g.choices || []) if (ch.ingredientId) ch.ingredientId = idMap.get(ch.ingredientId) || ch.ingredientId;
+    return c;
+  });
+  // Fehlende Zutaten nur anlegen, wenn sie nicht bewusst gelöscht wurden – außer ein neu angelegtes Gericht braucht sie.
+  const used = new Set(dishes.flatMap((dd) => [...(dd.ingredients || []).map((r) => r.ingredientId), ...(dd.options || []).flatMap((g) => (g.choices || []).map((ch) => ch.ingredientId))]));
+  const ingredients = missingIngs.filter((i) => !raw.ingredients.get(i.id)?.deleted || used.has(i.id));
+  return { dishes, ingredients };
+}
+
+async function importTemplate(btn) {
+  const plan = planTemplateImport();
+  const n = (k, one, many) => (k === 1 ? `1 ${one}` : `${k} ${many}`);
+  if (!plan.dishes.length && !plan.ingredients.length) {
+    await alert({ title: 'Vorlage bereits vorhanden', message: 'Alle Gerichte und Zutaten der Vorlage sind bereits angelegt. Gelöschte Gerichte werden nicht wiederhergestellt.' });
+    return;
+  }
+  const ok = await confirm('Vorlage importieren?',
+    `Es werden ${n(plan.dishes.length, 'Gericht', 'Gerichte')} und ${n(plan.ingredients.length, 'Zutat', 'Zutaten')} angelegt. Vorhandene Einträge bleiben unverändert, gleichnamige Zutaten werden verwendet.`,
+    'Importieren');
+  if (!ok) return;
+  await busy(btn, async () => {
+    const t = now();
+    app.sync.mutate((d) => {
+      for (const i of plan.ingredients) d.menu.ingredients[i.id] = { id: i.id, name: i.name, available: true, updatedAt: t };
+      for (const dd of plan.dishes) d.menu.dishes[dd.id] = { ...dd, updatedAt: t };
+    });
+    app.rebuild();
+  });
+  toast(`${n(plan.dishes.length, 'Gericht', 'Gerichte')} und ${n(plan.ingredients.length, 'Zutat', 'Zutaten')} angelegt`, { message: 'Vorlage Snacks und Desserts', icon: 'checkCircle', tone: 'green', ms: 4000 });
 }
 
 // ---------- Ansicht ----------
@@ -148,6 +207,8 @@ export function settingsView() {
     const testBtn = actionCell('Verbindung testen', null, 'arrowClockwise');
     testBtn.onclick = () => testConnection(testBtn);
     const newBtn = actionCell('Neue Ablage anlegen', null, 'plus');
+    const importBtn = actionCell('Vorlage importieren', null, 'tray');
+    importBtn.onclick = () => importTemplate(importBtn);
     newBtn.onclick = () => newStorage(newBtn);
 
     const theme = segmented([{ value: 'system', label: 'System' }, { value: 'light', label: 'Hell' }, { value: 'dark', label: 'Dunkel' }], s.theme || 'system', (v) => {
@@ -187,6 +248,8 @@ export function settingsView() {
         h('div', { class: 'section-foot' }, 'Der Code enthält den Zugangstoken. Nur an Geräte des eigenen Haushalts weitergeben.')),
 
       pushWrap,
+
+      section('Vorlage', [importBtn], `Snacks und Desserts mit Rezepten, Portionsgrößen und Auswahloptionen (${DISHES.length} Gerichte, ${INGREDIENTS.length} Zutaten). Ein erneuter Import legt nur fehlende Einträge an.`),
 
       section('Ton', [
         cell({ title: 'Signalton', sub: 'Bei neuen Bestellungen, Änderungen und Antworten', end: switchEl(s.sound, (v) => updateSettings({ sound: v }), { label: 'Signalton' }) }),

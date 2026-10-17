@@ -33,8 +33,12 @@ function itemInfo(order, item) {
     const a = item.answers?.[q.id];
     return a && (a.at || 0) >= (st.updatedAt || 0);
   });
-  return { state, st, questions, newAnswer };
+  const stock = (st?.fromStock || 0) > 0 && !st.stockReturned && state !== 'abbestellt' && state !== 'storno' ? st.fromStock : 0;
+  return { state, st, questions, newAnswer, stock };
 }
+
+/** „Vorrat“, wenn die ganze Menge aus dem Vorrat kommt, sonst „Aus Vorrat: n“. */
+const stockLabel = (it, n) => (n >= (it.qty || 1) ? 'Vorrat' : `Aus Vorrat: ${n}`);
 
 function orderInfo(order) {
   const infos = order.items.map((it) => itemInfo(order, it));
@@ -54,7 +58,7 @@ function orderBadges(order, info) {
   if (order.cancelled) out.push(badge('solid-red', 'xCircle', 'Storniert'));
   if (info.infos.some((i) => i.state === 'nachfrage')) out.push(badge('yellow', 'question', 'Nachfrage offen'));
   if (info.infos.some((i) => i.newAnswer)) out.push(badge('blue', 'bell', 'Antwort erhalten'));
-  if (!order.cancelled && (order.rev || 1) > 1) out.push(badge('tint', 'compose', 'Geändert'));
+  if (!order.cancelled && (order.rev || 1) > 1) out.push(badge('k-changed', 'compose', 'Geändert'));
   const ab = order.cancelled ? 0 : order.items.filter((i) => i.cancelled).length;
   if (ab) out.push(badge('', 'minus', ab === 1 ? '1 Position abbestellt' : `${ab} Positionen abbestellt`));
   return out;
@@ -100,7 +104,8 @@ function orderLine(it, info) {
     h('span', { class: 'k-qty num' }, `${it.qty || 1}×`),
     h('div', { class: 'k-lmain' },
       h('div', { class: 'k-lname' }, it.country ? h('span', { class: 'k-flag' }, flag(it.country)) : null, h('span', null, it.name)),
-      det.length ? h('div', { class: 'k-ldet' }, det.join(' · ')) : null,
+      det.length || info.stock ? h('div', { class: 'k-ldet' },
+        info.stock ? h('span', { class: 'k-stock' }, iconEl('bag'), stockLabel(it, info.stock)) : null, det.join(' · ')) : null,
       it.note ? h('div', { class: 'k-lnote' }, it.note) : null),
     ic ? h('span', { class: 'k-lstate', html: icon(ic) }) : h('span', { class: 'k-lstate dot' }));
 }
@@ -192,11 +197,18 @@ export function doneView() {
 
 // ---------- Statusänderungen ----------
 
+/** Vorratsfelder einer Position übernehmen; nach Rückbuchung und Zurücksetzen gilt die Position als zuzubereiten. */
+function stockFields(prev, state) {
+  if (prev?.stockReturned && state === 'neu') return { fromStock: 0, stockReturned: false };
+  return { fromStock: prev?.fromStock || 0, stockReturned: !!prev?.stockReturned };
+}
+
 function writeItem(order, item, { state, reason = '', questions }) {
+  const prev = itemStatus(app.view, order.id, item.id);
   app.sync.mutate((d) => {
     const s = (d.status[order.id] ||= { ackRev: 0, items: {} });
     s.items ||= {};
-    s.items[item.id] = { state, reason, questions, updatedAt: now() };
+    s.items[item.id] = { state, reason, questions, updatedAt: now(), ...stockFields(prev, state) };
     s.updatedAt = now();
   });
 }
@@ -252,7 +264,7 @@ function allDone(order, api) {
     s.items ||= {};
     for (const it of items) {
       const prev = itemStatus(app.view, order.id, it.id);
-      s.items[it.id] = { state: 'fertig', reason: '', questions: [...(prev?.questions || [])], updatedAt: now() };
+      s.items[it.id] = { state: 'fertig', reason: '', questions: [...(prev?.questions || [])], updatedAt: now(), ...stockFields(prev, 'fertig') };
     }
     s.updatedAt = now();
   });
@@ -319,9 +331,13 @@ export function openOrderSheet(orderId) {
         h('div', { class: 'k-iname' }, it.country ? h('span', { class: 'k-flag' }, flag(it.country)) : null, h('span', null, it.name)),
         det.length ? h('div', { class: 'k-idet' }, det.join(' · ')) : null,
         it.note ? h('div', { class: 'k-inote' }, iconEl('note'), h('span', null, it.note)) : null,
+        info.stock ? h('div', { class: 'k-istock' }, iconEl('bag'), h('span', null, info.stock >= (it.qty || 1)
+          ? 'Aus dem Vorrat entnommen – keine Zubereitung erforderlich'
+          : `${info.stock} aus dem Vorrat entnommen, ${(it.qty || 1) - info.stock} zuzubereiten`)) : null,
         st === 'storno' ? h('div', { class: 'k-ireason red' }, reason ? `Storniert: ${reason}` : 'Von der Küche storniert') : null,
         st === 'abbestellt' ? h('div', { class: 'k-ireason' }, order.cancelled ? 'Mit der Bestellung storniert' : `Vom Besteller abbestellt${it.cancelledAt ? ` um ${fmtTime(it.cancelledAt)}` : ''}`) : null),
-      h('div', { class: 'k-iend' }, h('span', { class: `badge ${BADGE[st]}` }, STATE_LABEL[st]), iconEl('chevronRight', 'cell-chevron')));
+      h('div', { class: 'k-iend' }, info.stock ? h('span', { class: 'badge k-stock-badge' }, stockLabel(it, info.stock)) : null,
+        h('span', { class: `badge ${BADGE[st]}` }, STATE_LABEL[st]), iconEl('chevronRight', 'cell-chevron')));
 
     const thread = info.questions.length ? h('div', { class: 'k-thread' }, info.questions.flatMap((q) => {
       const a = it.answers?.[q.id];
