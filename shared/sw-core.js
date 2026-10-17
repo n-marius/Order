@@ -17,20 +17,24 @@ self.addEventListener('activate', (e) => {
   );
 });
 
-// Eigene Dateien: erst Cache (sofort, offline), im Hintergrund aktualisieren. Fremde Hosts (GitHub-API, Worker) nie cachen.
+// Eigene Dateien: Netz zuerst (Updates sofort, keine gemischten Versionen), nach 2,5 s oder offline aus dem Cache.
+// Fremde Hosts (GitHub-API, Worker) nie cachen.
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.origin !== location.origin) return;
-  e.respondWith(
-    caches.open(CACHE).then(async (cache) => {
-      const hit = await cache.match(e.request, { ignoreSearch: true });
-      const net = fetch(e.request)
-        .then((res) => { if (res.ok) cache.put(e.request, res.clone()); return res; })
-        .catch(() => null);
-      if (hit) { e.waitUntil(net); return hit; }
-      return (await net) || (e.request.mode === 'navigate' ? cache.match('./index.html') : Response.error());
-    }),
-  );
+  e.respondWith((async () => {
+    const cache = await caches.open(CACHE);
+    const net = fetch(e.request, { cache: 'no-cache' })
+      .then((res) => { if (res.ok) cache.put(e.request, res.clone()); return res; })
+      .catch(() => null);
+    const timeout = new Promise((r) => setTimeout(() => r(null), 2500));
+    const first = await Promise.race([net, timeout]);
+    if (first) return first;
+    const hit = await cache.match(e.request, { ignoreSearch: true })
+      || (e.request.mode === 'navigate' ? await cache.match('./index.html') : null);
+    if (hit) { e.waitUntil(net); return hit; }
+    return (await net) || Response.error();
+  })());
 });
 
 self.addEventListener('push', (e) => {
