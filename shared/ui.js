@@ -228,8 +228,9 @@ export function connectionPill(sync, extra) {
   };
   sync.addEventListener('status', render);
   sync.addEventListener('data', render);
-  setInterval(render, 15000);
+  const iv = setInterval(render, 15000);
   render();
+  el.destroy = () => { clearInterval(iv); sync.removeEventListener('status', render); sync.removeEventListener('data', render); };
   return el;
 }
 
@@ -242,8 +243,9 @@ export function offlineBand(sync) {
     if (off) el.lastChild.textContent = `Offline – Änderungen werden gesendet, sobald die Verbindung zurück ist · zuletzt synchronisiert ${fmtAgo(sync.state.lastPull)}`;
   };
   sync.addEventListener('status', render);
-  setInterval(render, 30000);
+  const iv = setInterval(render, 30000);
   render();
+  el.destroy = () => { clearInterval(iv); sync.removeEventListener('status', render); };
   return el;
 }
 

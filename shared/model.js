@@ -2,7 +2,7 @@
 
 import { CATEGORIES, now } from './core.js';
 
-const KITCHEN_ONLINE_MS = 150000;
+export const KITCHEN_ONLINE_MS = 150000;
 const DAY = 86400000;
 
 const newer = (a, b) => (!a || (b && (b.updatedAt || 0) > (a.updatedAt || 0)) ? b : a);
@@ -56,6 +56,9 @@ export function buildView(docs) {
     kitchenLastSeen, kitchenOnline: now() - kitchenLastSeen < KITCHEN_ONLINE_MS,
   };
 }
+
+/** Küche aktuell erreichbar (auch bei zwischengespeicherter Sicht korrekt). */
+export const kitchenOnlineNow = (view) => now() - (view.kitchenLastSeen || 0) < KITCHEN_ONLINE_MS;
 
 // ---------- Gerichte ----------
 

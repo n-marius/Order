@@ -18,6 +18,7 @@ export class Sync extends EventTarget {
     this.role = settings.role;
     this.beforePush = beforePush;
     this.fileName = `dev-${settings.deviceId}.json`;
+    this._gistId = settings.gistId;
     this.state = { online: navigator.onLine, syncing: false, lastPull: 0, lastPush: 0, error: '', dirty: false, rateRemaining: null };
     this.remote = new Map(); // Dateiname → Dokument (ohne eigene Datei)
     this.etag = '';
@@ -119,8 +120,9 @@ export class Sync extends EventTarget {
 
   /** Einstellungen haben sich geändert (z. B. neuer Gist). */
   reconfigure(settings) {
-    const gistChanged = settings.gistId !== this.settings.gistId;
+    const gistChanged = settings.gistId !== this._gistId;
     this.settings = settings;
+    this._gistId = settings.gistId;
     if (gistChanged) {
       this.remote = new Map();
       this.etag = '';

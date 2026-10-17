@@ -22,6 +22,7 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.origin !== location.origin) return;
+  if (e.request.headers.has('Authorization') || e.request.cache === 'no-store' || /\/(api|worker)\//.test(url.pathname)) return;
   e.respondWith((async () => {
     const cache = await caches.open(CACHE);
     const net = fetch(e.request, { cache: 'no-cache' })
