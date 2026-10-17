@@ -55,10 +55,11 @@ Fehler/Offline erneuter Versuch. Die Küche schreibt alle 60 s einen Heartbeat (
   "options": [ { "id", "name", "type": "single|multi", "required": false,
                  "choices": [ { "id", "name", "ingredientId": null|"<id>", "default": false } ] } ],
   "ice": null | { "default": true|false },   // null = keine Eis-Auswahl
+  "ready": { "<sizeId>|_": 0 },     // vorbereitete Einheiten je Größe ('_' ohne Größen)
   "sort": 0, "updatedAt", "deleted"?
 }
 ```
-Verfügbarkeit: Gericht verfügbar ⇔ alle Zutaten der Zutatenliste vorhanden. Option ausgegraut ⇔ verknüpfte Zutat fehlt.
+Verfügbarkeit: Gericht verfügbar ⇔ alle Zutaten der Zutatenliste vorhanden und jede Pflichtauswahl hat mindestens eine Option, deren Zutat vorhanden ist. Option ausgegraut ⇔ verknüpfte Zutat fehlt.
 Pro Kategorie gibt es zusätzlich das virtuelle Gericht `manual-<category>` („Manuell“, immer verfügbar,
 Anmerkung Pflicht).
 
@@ -76,6 +77,7 @@ Anmerkung Pflicht).
     "options": { "<optionId>": ["<choiceId>"] },
     "optionLabels": [ "Optionsname: Auswahl" ],
     "note": "", "cancelled": false, "cancelledAt": null,
+    "stockQty": 0,                  // davon aus dem Vorrat erwartet (beim Bestellen angezeigt)
     "answers": { "<questionId>": { "quick": "ja|nein|egal|null", "text": "", "at" } }
   } ]
 }
@@ -84,8 +86,16 @@ Anmerkung Pflicht).
 ### ItemStatus (Küche)
 ```jsonc
 { "state": "neu|fertig|storno", "reason": "", "updatedAt",
-  "questions": [ { "id", "text", "at" } ] }
+  "questions": [ { "id", "text", "at" } ],
+  "fromStock": 0,                   // beim Eingang aus dem Vorrat entnommen
+  "stockReturned": false }          // bei Abbestellung zurückgebucht
 ```
+
+### Vorrat
+Die Küche bucht beim ersten Eingang einer Bestellung (`ackRev` 0 → ≥ 1) `stockQty` je Position aus `dish.ready` ab.
+Alle im selben Abruf neu eingegangenen Positionen werden je Gericht und Größe gemeinsam geprüft: Reicht der Vorrat
+nicht für alle, werden alle betroffenen Positionen storniert (Grund „Vorrat nicht ausreichend …“, Mitteilung an
+die Geräte), der Vorrat bleibt unverändert. Abbestellte Positionen mit `fromStock > 0` werden zurückgebucht.
 Anzeige-Zustand je Position (`model.itemState`): `abbestellt` (vom Besteller storniert) → `storno` → `fertig` →
 `nachfrage` (offene Frage ohne Antwort) → `neu`.
 

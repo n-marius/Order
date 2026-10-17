@@ -92,18 +92,35 @@ export function emptyDish(category = 'hauptspeise') {
 /** Ist die Zutat (ID) vorhanden? Unbekannte/gelöschte Zutaten gelten als fehlend. */
 export const ingredientAvailable = (view, id) => !!view.ingredients.get(id)?.available;
 
-/** @returns {{available: boolean, missing: string[]}} */
+/**
+ * Verfügbar ⇔ alle Zutaten vorhanden und jede Pflichtauswahl hat mindestens eine wählbare Option.
+ * @returns {{available: boolean, missing: string[]}}
+ */
 export function dishAvailability(view, dish) {
   if (!dish || dish.manual) return { available: true, missing: [] };
   const missing = (dish.ingredients || [])
     .filter((r) => !ingredientAvailable(view, r.ingredientId))
     .map((r) => view.ingredients.get(r.ingredientId)?.name || 'Unbekannte Zutat');
+  for (const g of dish.options || []) {
+    if (g.required && g.choices?.length && !g.choices.some((c) => choiceAvailable(view, c))) missing.push(`${g.name}: keine Auswahl vorhanden`);
+  }
   return { available: missing.length === 0, missing };
 }
 
 export function choiceAvailable(view, choice) {
   return !choice.ingredientId || ingredientAvailable(view, choice.ingredientId);
 }
+
+// ---------- Vorrat (bereits vorbereitete Einheiten) ----------
+
+/** Schlüssel in dish.ready: Größen-ID, ohne Größen '_'. */
+export const stockKey = (sizeId) => sizeId || '_';
+
+/** Anzahl vorbereiteter Einheiten für eine Größe (bzw. ohne Größen). */
+export const readyCount = (dish, sizeId) => Math.max(0, +(dish?.ready?.[stockKey(sizeId)] || 0));
+
+/** Summe über alle Größen. */
+export const readyTotal = (dish) => Object.values(dish?.ready || {}).reduce((a, n) => a + Math.max(0, +n || 0), 0);
 
 /** Zutatenliste für eine Portionsgröße: [{name, amount, unit, available}] */
 export function ingredientLines(view, dish, sizeId) {

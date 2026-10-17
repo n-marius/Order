@@ -31,12 +31,13 @@ def toque():
     band = rbox(380, 674, 644, 760, 26)
     return [(hat, 'a'), (band, 'b')]
 
-def svg(top, bottom, deep, tintA, tintB, layers, cy, strong=False):
+def svg(top, bottom, deep, tintA, tintB, layers, cy, strong=False, glow=None):
     from shapely.ops import unary_union
     x0, y0, x1, y1 = unary_union([g for g, _ in layers]).bounds
     dx = 512 - (x0 + x1) / 2
     dy = (cy - (y0 + y1) / 2) if strong else (cy - 512)
-    sheen = '<rect width="1024" height="1024" fill="url(#sheen)"/>' if strong else ''
+    glow = strong if glow is None else glow
+    sheen = '<rect width="1024" height="1024" fill="url(#sheen)"/>' if glow else ''
     if strong:
         shadow = f'''<filter id="sh" filterUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024">
       <feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="{deep}" flood-opacity="0.38"/>
@@ -61,5 +62,5 @@ def svg(top, bottom, deep, tintA, tintB, layers, cy, strong=False):
   <g transform="translate({dx:.1f} {dy:.1f})">{body}</g>
 </svg>'''
 
-open('logo-bestellen.svg', 'w').write(svg('#62C6FF', '#0846DB', '#02247A', '#D6E6FF', '#EEF5FF', bell(), 506, strong=True))
-open('logo-kueche.svg', 'w').write(svg('#FFB33F', '#FF6A00', '#9A3A00', '#FFE9CF', '#FFF6EA', toque(), 512 - 4))
+open('logo-bestellen.svg', 'w').write(svg('#FFB33F', '#FF6A00', '#8A3200', '#FFE9CF', '#FFF6EA', bell(), 494, strong=True, glow=False))
+open('logo-kueche.svg', 'w').write(svg('#62C6FF', '#0846DB', '#02247A', '#D6E6FF', '#EEF5FF', toque(), 512 - 4, glow=True))
