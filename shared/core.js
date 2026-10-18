@@ -16,7 +16,7 @@ export const COUNTRIES = [
   ['', 'Keine'], ['DE', 'Deutschland'], ['AT', 'Österreich'], ['CH', 'Schweiz'], ['IT', 'Italien'],
   ['FR', 'Frankreich'], ['ES', 'Spanien'], ['PT', 'Portugal'], ['GR', 'Griechenland'], ['TR', 'Türkei'],
   ['GB', 'Großbritannien'], ['IE', 'Irland'], ['NL', 'Niederlande'], ['BE', 'Belgien'], ['DK', 'Dänemark'],
-  ['SE', 'Schweden'], ['NO', 'Norwegen'], ['FI', 'Finnland'], ['PL', 'Polen'], ['CZ', 'Tschechien'],
+  ['SE', 'Schweden'], ['NO', 'Norwegen'], ['FI', 'Finnland'], ['LT', 'Litauen'], ['PL', 'Polen'], ['CZ', 'Tschechien'],
   ['HU', 'Ungarn'], ['HR', 'Kroatien'], ['RU', 'Russland'], ['UA', 'Ukraine'], ['US', 'USA'],
   ['CA', 'Kanada'], ['MX', 'Mexiko'], ['CU', 'Kuba'], ['BR', 'Brasilien'], ['AR', 'Argentinien'],
   ['PE', 'Peru'], ['CL', 'Chile'], ['JP', 'Japan'], ['CN', 'China'], ['KR', 'Korea'], ['TH', 'Thailand'],

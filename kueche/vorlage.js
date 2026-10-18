@@ -27,9 +27,13 @@ export const INGREDIENTS = [
   I('fallot-trueffel', 'Fallot-Senf Trüffel'),
   I('pistaziencreme', 'Pistaziencreme'),
   I('olivenoel', 'Olivenöl'),
+  I('parmesan', 'Parmesan'),
+  I('roggenbrot', 'Roggenbrot'),
+  I('knoblauch', 'Knoblauch'),
+  I('frittieroel', 'Frittieröl'),
   // Getränke
   I('skiwasser', 'Skiwasser'),
-  I('tymbark', 'Timbark'),
+  I('tymbark', 'Tymbark'),
   I('fanta-shokata', 'Fanta Shokata'),
   I('kombutscha', 'Kombutscha'),
   I('calypso', 'Calypso'),
@@ -40,6 +44,8 @@ export const INGREDIENTS = [
   I('limettensaft', 'Limettensaft'),
   I('ginger-beer', 'Ginger Beer'),
   I('limette', 'Limette'),
+  I('yuzu-limo', 'Yuzu Limo'),
+  I('yuzu-limo-light', 'Yuzu Limo light'),
   // Grundrezepte
   I('cannoli-roehren', 'Cannoli-Röhren'),
   I('ricotta', 'Ricotta'),
@@ -100,6 +106,16 @@ export const DISHES = [
   D('oliven', {
     name: 'matte Oliven', category: 'vorspeise', country: 'ES', sort: 20,
     sizes: SCHALEN(), ingredients: [ing('oliven')],
+  }),
+  D('parmesan', {
+    name: 'Parmesanbrocken', category: 'vorspeise', country: 'IT', sort: 30,
+    sizes: sizes('Schälchen', 'Schale'), ingredients: [ing('parmesan')],
+  }),
+  D('kepta-duona', {
+    name: 'Kepta duona', category: 'vorspeise', country: 'LT', sort: 40, prepMinutes: 15,
+    description: 'Frittiertes Roggenbrot mit Knoblauch',
+    sizes: sizes('5 Stück', '10 Stück', '15 Stück'),
+    ingredients: [per('roggenbrot', 'Stück', S3, [5, 10, 15]), per('knoblauch', 'Zehe', S3, [1, 2, 3]), ing('frittieroel')],
   }),
 
   // ---------- süß ----------
@@ -219,12 +235,12 @@ export const DISHES = [
   // ---------- Getränke (alkoholfrei) ----------
   ...[
     ['skiwasser', 'Skiwasser', 'AT'],
-    ['tymbark', 'Timbark', 'PL'],
-    ['fanta-shokata', 'Fanta Shokata', 'UA'],
+    ['tymbark', 'Tymbark', 'PL', 2],
+    ['fanta-shokata', 'Fanta Shokata', '', 2],
     ['kombutscha', 'Kombutscha', 'MX'],
     ['calypso', 'Calypso', 'US'],
-  ].map(([id, name, country], i) => D(id, {
-    name, category: 'getraenk', country, sort: 10 + i * 10, ice: { default: false }, ingredients: [ing(id)],
+  ].map(([id, name, country, tpl = 1], i) => D(id, {
+    name, category: 'getraenk', country, sort: 10 + i * 10, tpl, ice: { default: false }, ingredients: [ing(id)],
   })),
   D('san-bitter', {
     name: 'San Bitter', category: 'getraenk', country: 'IT', sort: 60, ice: { default: false },
@@ -249,10 +265,24 @@ export const DISHES = [
       'Mit Ginger Beer auffüllen, kurz umrühren und mit einer Limettenscheibe garnieren.',
     ],
   }),
+  ...[['yuzu-limo', 'Yuzu Limo'], ['yuzu-limo-light', 'Yuzu Limo light']].map(([id, name], i) => D(id, {
+    name, category: 'getraenk', country: 'JP', sort: 100 + i * 10,
+    sizes: sizes('Glas', 'Flasche'), ingredients: [ing(id)],
+    options: [{ id: 'o-glas', name: 'Dazu', type: 'multi', required: false, sizeIds: ['s2'], choices: [
+      { id: 'c-glas', name: 'mit Glas', ingredientId: null, default: true },
+    ] }],
+  })),
 ];
+
+/** Zutaten, deren Name sich gegenüber früheren Vorlagen geändert hat: id → alter Name. */
+export const RENAMED_INGREDIENTS = {
+  'vz-tymbark': 'Timbark',
+};
 
 /** Abweichende Felder früherer Vorlagenversionen (zur Erkennung unveränderter Gerichte). */
 export const PREVIOUS = {
+  'vd-tymbark': { name: 'Timbark' },
+  'vd-fanta-shokata': { country: 'UA' },
   'vd-chocolate-cake': { prepMinutes: 25 },
   'vd-creme-brulee': { prepMinutes: 180 },
   'vd-cannolo': { prepMinutes: 10, steps: [

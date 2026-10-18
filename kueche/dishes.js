@@ -261,7 +261,7 @@ export function openRecipe({ dishId, item, order }) {
     if (!item && dish.options?.length) {
       parts.push(section('Auswahloptionen', dish.options.map((g) => h('div', { class: 'cell k-ropt' },
         h('div', { class: 'cell-body' },
-          h('div', { class: 'cell-title' }, g.name, h('span', { class: 'c2 t-foot' }, ` · ${g.type === 'multi' ? 'Mehrfachauswahl' : 'Einfachauswahl'}${g.required ? ' · Pflicht' : ''}`)),
+          h('div', { class: 'cell-title' }, g.name, h('span', { class: 'c2 t-foot' }, ` · ${g.type === 'multi' ? 'Mehrfachauswahl' : 'Einfachauswahl'}${g.required ? ' · Pflicht' : ''}${g.sizeIds?.length ? ` · nur ${g.sizeIds.map((id) => dish.sizes?.find((s) => s.id === id)?.name).filter(Boolean).join(', ')}` : ''}`)),
           h('div', { class: 'chips k-rchoices' }, (g.choices || []).map((c) => {
             const off = c.ingredientId && !ingredientById(c.ingredientId)?.available;
             return h('span', { class: `chip${c.default ? ' on' : ''}${off ? ' off' : ''}` }, c.name);
@@ -451,6 +451,7 @@ export function openDishEditor(dishId, { category } = {}) {
     }
     renderSizes();
     renderIngr();
+    renderOpts();
   }
 
   function renderSizes() {
@@ -461,11 +462,12 @@ export function openDishEditor(dishId, { category } = {}) {
           d.sizes.splice(i, 1);
           for (const r of d.ingredients) delete r.amounts[s.id];
           if (isDef) d.defaultSizeId = d.sizes[0]?.id || null;
-          renderSizes(); renderIngr();
+          for (const g of d.options) if (g.sizeIds) g.sizeIds = g.sizeIds.filter((id) => id !== s.id);
+          renderSizes(); renderIngr(); renderOpts();
         }, `${s.name || 'Größe'} entfernen`) : h('span', { class: 'k-del-ph' }),
         h('input', {
           class: 'field left', value: s.name, placeholder: `Größe ${i + 1}`, 'aria-label': `Name der Größe ${i + 1}`,
-          oninput: (e) => { s.name = e.target.value; }, onchange: () => renderIngr(),
+          oninput: (e) => { s.name = e.target.value; }, onchange: () => { renderIngr(); renderOpts(); },
         }),
         h('button', { class: `k-default${isDef ? ' on' : ''}`, 'aria-pressed': String(isDef), onclick: () => { d.defaultSizeId = s.id; renderSizes(); } },
           isDef ? iconEl('check') : null, isDef ? 'Standard' : 'Als Standard'));
@@ -475,7 +477,7 @@ export function openDishEditor(dishId, { category } = {}) {
         const s = { id: uid('s'), name: '' };
         d.sizes.push(s);
         for (const r of d.ingredients) r.amounts[s.id] = '';
-        renderSizes(); renderIngr();
+        renderSizes(); renderIngr(); renderOpts();
         sizesList.querySelectorAll('.k-size-row input')[d.sizes.length - 1]?.focus();
       }));
     }
@@ -545,6 +547,22 @@ export function openDishEditor(dishId, { category } = {}) {
     return [['', 'Ohne Zutat'], ...[...app.view.ingredients.values()].sort(byName).map((i) => [i.id, i.available ? i.name : `${i.name} (fehlt)`])];
   }
 
+  /** Größen, für die die Gruppe angeboten wird (keine Einschränkung = alle). */
+  function sizeScope(g) {
+    const on = (id) => !g.sizeIds?.length || g.sizeIds.includes(id);
+    return h('div', { class: 'cell k-og-sizes' },
+      h('span', { class: 'k-og-sizes-label' }, 'Nur bei Größe'),
+      h('div', { class: 'chips' }, d.sizes.map((s, i) => h('button', {
+        class: `chip${on(s.id) ? ' on' : ''}`, 'aria-pressed': String(on(s.id)),
+        onclick: () => {
+          const ids = d.sizes.map((x) => x.id).filter((id) => (id === s.id ? !on(id) : on(id)));
+          if (!ids.length) return;
+          if (ids.length === d.sizes.length) delete g.sizeIds; else g.sizeIds = ids;
+          renderOpts();
+        },
+      }, on(s.id) ? iconEl('check') : null, h('span', { class: 'chip-label' }, s.name || `Größe ${i + 1}`)))));
+  }
+
   function renderOpts(focusGroup = -1) {
     const ingOpts = ingredientOptions();
     const groups = d.options.map((g, gi) => {
@@ -580,6 +598,7 @@ export function openDishEditor(dishId, { category } = {}) {
             renderOpts();
           }),
           h('label', { class: 'k-req' }, h('span', null, 'Pflicht'), switchEl(g.required, (v) => { g.required = v; }, { label: 'Pflichtauswahl' }))),
+        d.sizes.length > 1 ? sizeScope(g) : null,
         ...choiceRows,
         actionCell('Auswahl hinzufügen', () => {
           g.choices.push({ id: uid('c'), name: '', ingredientId: null, default: false });
@@ -645,7 +664,11 @@ export function openDishEditor(dishId, { category } = {}) {
     out.options = out.options.map((g) => {
       const choices = g.choices.filter((c) => c.name.trim()).map((c) => ({ id: c.id, name: c.name.trim(), ingredientId: c.ingredientId || null, default: !!c.default }));
       if (g.type === 'single') { let seen = false; for (const c of choices) { if (c.default && seen) c.default = false; if (c.default) seen = true; } }
-      return { id: g.id, name: g.name.trim() || 'Auswahl', type: g.type === 'multi' ? 'multi' : 'single', required: !!g.required, choices };
+      const sizeIds = (g.sizeIds || []).filter((id) => out.sizes.some((s) => s.id === id));
+      return {
+        id: g.id, name: g.name.trim() || 'Auswahl', type: g.type === 'multi' ? 'multi' : 'single', required: !!g.required, choices,
+        ...(sizeIds.length && sizeIds.length < out.sizes.length ? { sizeIds } : {}),
+      };
     }).filter((g) => g.choices.length);
     out.ice = DRINK_CATEGORIES.includes(out.category) && out.ice ? { default: !!out.ice.default } : null;
     out.prepMinutes = out.prepMinutes === '' || out.prepMinutes == null ? null : +out.prepMinutes;

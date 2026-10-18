@@ -6,7 +6,7 @@ import { pushState, enablePush, sendTestPush, isStandalone } from '../shared/pus
 import { chime } from '../shared/sound.js';
 import { app, updateSettings, largeTitle, formRow, actionCell, put, norm } from './ctx.js';
 import { resetSeen } from './signals.js';
-import { INGREDIENTS, DISHES, PREVIOUS } from './vorlage.js';
+import { INGREDIENTS, DISHES, PREVIOUS, RENAMED_INGREDIENTS } from './vorlage.js';
 
 const DEFAULT_API = 'https://api.github.com';
 const TOKEN_HINT = 'Benötigt wird ein Fine-grained Personal Access Token mit der Berechtigung „Gists: Read and write“ (github.com → Settings → Developer settings → Personal access tokens).';
@@ -95,7 +95,10 @@ export function planTemplateImport() {
   // Fehlende Zutaten nur anlegen, wenn sie nicht bewusst gelöscht wurden – außer ein neues/aktualisiertes Gericht braucht sie.
   const used = new Set([...dishes, ...updates].flatMap((dd) => [...(dd.ingredients || []).map((r) => r.ingredientId), ...(dd.options || []).flatMap((g) => (g.choices || []).map((ch) => ch.ingredientId))]));
   const ingredients = missingIngs.filter((i) => used.has(i.id) || (!raw.ingredients.get(i.id)?.deleted && !raw.ingredients.has(i.id)));
-  return { dishes, updates, skipped, ingredients };
+  // Vorlagenzutaten mit korrigiertem Namen umbenennen, sofern sie noch den alten Namen tragen.
+  const renames = INGREDIENTS.filter((i) => RENAMED_INGREDIENTS[i.id] && app.view.ingredients.get(i.id)?.name === RENAMED_INGREDIENTS[i.id]
+    && !app.view.ingredients.has(byName.get(norm(i.name)) ?? ''));
+  return { dishes, updates, skipped, ingredients, renames };
 }
 
 const CONTENT_KEYS = ['name', 'category', 'country', 'description', 'prepMinutes', 'sizes', 'defaultSizeId', 'ingredients', 'steps', 'options', 'ice'];
@@ -109,7 +112,7 @@ async function importTemplate(btn) {
   const plan = planTemplateImport();
   const n = (k, one, many) => (k === 1 ? `1 ${one}` : `${k} ${many}`);
   const skippedText = plan.skipped.length ? ` Nicht aktualisiert, da zwischenzeitlich bearbeitet: ${plan.skipped.join(', ')}.` : '';
-  if (!plan.dishes.length && !plan.updates.length && !plan.ingredients.length) {
+  if (!plan.dishes.length && !plan.updates.length && !plan.ingredients.length && !plan.renames.length) {
     await alert({ title: 'Vorlage bereits vorhanden', message: `Alle Gerichte und Zutaten der Vorlage sind bereits angelegt. Gelöschte Gerichte werden nicht wiederhergestellt.${skippedText}` });
     return;
   }
@@ -122,6 +125,7 @@ async function importTemplate(btn) {
     const t = now();
     app.sync.mutate((d) => {
       for (const i of plan.ingredients) d.menu.ingredients[i.id] = { id: i.id, name: i.name, available: true, updatedAt: t };
+      for (const i of plan.renames) d.menu.ingredients[i.id] = { ...app.view.ingredients.get(i.id), name: i.name, updatedAt: t };
       for (const dd of [...plan.dishes, ...plan.updates]) d.menu.dishes[dd.id] = { ...dd, updatedAt: t };
     });
     app.rebuild();

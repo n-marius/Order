@@ -2,7 +2,7 @@
 
 import { h, uid, flag, countryName, categoryById, haptic, CATEGORIES } from '../shared/core.js';
 import {
-  dishesByCategory, dishAvailability, choiceAvailable, ingredientLines, manualDish, isManual, MANUAL_PREFIX,
+  dishesByCategory, dishAvailability, choiceAvailable, optionApplies, ingredientLines, manualDish, isManual, MANUAL_PREFIX,
 } from '../shared/model.js';
 import { sheet, segmented, stepper, photo, toast, icon, iconEl } from '../shared/ui.js';
 import { S, view, cart, saveCart, emit } from './store.js';
@@ -130,7 +130,7 @@ export function openDish(dishId, { item = null, onSave = null, saveLabel = 'Übe
   let sizeSec = null;
   if (sizes.length) {
     sizeSec = cfgSection('Größe', null, [
-      segmented(sizes.map((s) => ({ value: s.id, label: s.name })), st.sizeId, (val) => { st.sizeId = val; renderIngredients(); renderStock(); updateFoot(); }, { large: true }),
+      segmented(sizes.map((s) => ({ value: s.id, label: s.name })), st.sizeId, (val) => { st.sizeId = val; renderIngredients(); renderStock(); renderOptions(); updateFoot(); }, { large: true }),
       segStockEl]);
   }
   // Eis
@@ -233,7 +233,7 @@ export function openDish(dishId, { item = null, onSave = null, saveLabel = 'Übe
 
   function renderOptions() {
     const v = view();
-    optsEl.replaceChildren(...(dish.options || []).map((o) => {
+    optsEl.replaceChildren(...(dish.options || []).filter((o) => optionApplies(o, st.sizeId)).map((o) => {
       const set = st.options[o.id] ||= new Set();
       for (const id of [...set]) {
         const c = o.choices.find((x) => x.id === id);
@@ -261,7 +261,7 @@ export function openDish(dishId, { item = null, onSave = null, saveLabel = 'Übe
   function problem() {
     if (dish.gone) return editing ? '' : 'Nicht mehr auf der Karte';
     if (!dishAvailability(view(), dish).available) return 'Nicht verfügbar';
-    for (const o of dish.options || []) if (o.required && !st.options[o.id]?.size) return `Auswahl erforderlich: ${o.name}`;
+    for (const o of dish.options || []) if (optionApplies(o, st.sizeId) && o.required && !st.options[o.id]?.size) return `Auswahl erforderlich: ${o.name}`;
     if (dish.manual && !noteEl.value.trim()) return 'Beschreibung erforderlich';
     return '';
   }
@@ -288,6 +288,7 @@ export function openDish(dishId, { item = null, onSave = null, saveLabel = 'Übe
     const size = sizes.find((s) => s.id === st.sizeId);
     const options = {}; const optionLabels = [];
     for (const o of dish.options || []) {
+      if (!optionApplies(o, st.sizeId)) continue;
       const chosen = o.choices.filter((c) => st.options[o.id]?.has(c.id));
       if (!chosen.length) continue;
       options[o.id] = chosen.map((c) => c.id);

@@ -415,6 +415,21 @@ async function main() {
   check(cake.options[0].choices.find((c) => c.id === 'c-vanille').ingredientId === userIng.id, 'Vorhandene Zutat „vanilleeis“ im Gericht verknüpft');
   check(!!olive, 'Vorhandenes Olivenöl bleibt bestehen');
 
+  log('Option nur bei bestimmter Größe (Yuzu Limo)');
+  check(JSON.stringify(imp.menu.dishes['vd-yuzu-limo'].options[0].sizeIds) === '["s2"]', '„mit Glas“ nur bei Flasche');
+  await nav(page, 'dishes');
+  await page.locator('.k-dish[data-dish="vd-yuzu-limo"] .k-dish-edit').click();
+  await ed.waitFor();
+  const scope = ed.locator('.k-og-sizes');
+  check(await scope.locator('.chip.on:has-text("Flasche")').count() === 1 && await scope.locator('.chip.on:has-text("Glas")').count() === 0, 'Editor zeigt Größenbindung');
+  await scope.locator('.chip:has-text("Glas")').click();
+  check(await scope.locator('.chip.on').count() === 2, 'Alle Größen gewählt');
+  await scope.locator('.chip:has-text("Glas")').click();
+  await ed.getByRole('button', { name: 'Speichern' }).click();
+  await page.waitForSelector(sheetSel('k-editor-sheet'), { state: 'detached' });
+  const yz = await until(async () => { const d = fileOf(await state(), GID, KFILE).menu.dishes['vd-yuzu-limo']; return d.updatedAt > imp.menu.dishes['vd-yuzu-limo'].updatedAt && d; }, 'Yuzu Limo gespeichert');
+  check(JSON.stringify(yz.options[0].sizeIds) === '["s2"]', 'Größenbindung bleibt beim Speichern erhalten');
+
   log('Erneuter Import (Idempotenz, gelöschte Gerichte bleiben gelöscht)');
   await nav(page, 'dishes');
   await page.locator('.k-dish[data-dish="vd-pralinen"] .k-dish-edit').click();

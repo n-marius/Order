@@ -1,7 +1,7 @@
 // Warenkorb (Blatt) und Absenden der Bestellung.
 
 import { h, uid, now, flag, isConfigured, categoryById } from '../shared/core.js';
-import { dishAvailability, choiceAvailable, itemDetails, isManual } from '../shared/model.js';
+import { dishAvailability, choiceAvailable, optionApplies, itemDetails, isManual } from '../shared/model.js';
 import { sheet, stepper, photo, toast, alert, confirm, icon, iconEl } from '../shared/ui.js';
 import { S, view, cart, saveCart, cartCount, itemsSummary, room } from './store.js';
 import { openDish } from './menu.js';
@@ -15,6 +15,7 @@ export function cartProblem(v, it) {
   const av = dishAvailability(v, dish);
   if (!av.available) return `Nicht verfügbar. Es fehlt: ${av.missing.join(', ')}`;
   for (const o of dish.options || []) {
+    if (!optionApplies(o, it.sizeId)) continue;
     for (const cid of it.options?.[o.id] || []) {
       const c = o.choices.find((x) => x.id === cid);
       if (!c) return `Auswahl nicht mehr vorhanden: ${o.name}`;

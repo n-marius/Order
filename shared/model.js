@@ -102,10 +102,14 @@ export function dishAvailability(view, dish) {
     .filter((r) => !ingredientAvailable(view, r.ingredientId))
     .map((r) => view.ingredients.get(r.ingredientId)?.name || 'Unbekannte Zutat');
   for (const g of dish.options || []) {
+    if (g.sizeIds?.length) continue; // größenabhängig: wird bei der Auswahl der Größe geprüft
     if (g.required && g.choices?.length && !g.choices.some((c) => choiceAvailable(view, c))) missing.push(`${g.name}: keine Auswahl vorhanden`);
   }
   return { available: missing.length === 0, missing };
 }
+
+/** Gilt die Optionsgruppe für die Größe? sizeIds fehlt = für alle Größen. */
+export const optionApplies = (group, sizeId) => !group.sizeIds?.length || group.sizeIds.includes(sizeId);
 
 export function choiceAvailable(view, choice) {
   return !choice.ingredientId || ingredientAvailable(view, choice.ingredientId);

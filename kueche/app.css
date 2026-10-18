@@ -563,6 +563,9 @@ input.k-ir-unit { text-align: left; }
 .k-og-type .seg { flex: 1 1 260px; }
 .k-og-type .seg button { height: 32px; font-size: 14px; }
 .k-req { display: flex; align-items: center; gap: 10px; font-size: 17px; cursor: pointer; }
+.k-og-sizes { gap: 12px; flex-wrap: wrap; }
+.k-og-sizes-label { font-size: 15px; color: var(--label2); }
+.k-og-sizes .chip { min-height: 30px; padding: 4px 12px; font-size: 14px; }
 .k-choice { gap: 4px; padding-top: 0; padding-bottom: 0; --sep-inset: 74px; }
 .k-choice .field { height: 44px; }
 .k-choice-name { flex: 1; }

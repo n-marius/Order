@@ -53,6 +53,7 @@ Fehler/Offline erneuter Versuch. Die Küche schreibt alle 60 s einen Heartbeat (
                                    // ohne sizes: amount, mit sizes: amounts je Größe
   "steps": [ "..." ],
   "options": [ { "id", "name", "type": "single|multi", "required": false,
+                 "sizeIds"?: ["<sizeId>"],   // nur bei diesen Größen angeboten (fehlt = alle)
                  "choices": [ { "id", "name", "ingredientId": null|"<id>", "default": false } ] } ],
   "ice": null | { "default": true|false },   // null = keine Eis-Auswahl
   "ready": { "<sizeId>|_": 0 },     // vorbereitete Einheiten je Größe ('_' ohne Größen)

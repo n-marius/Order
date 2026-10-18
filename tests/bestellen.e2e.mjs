@@ -190,6 +190,19 @@ try {
   check(!(await sh.locator('.add-btn').isDisabled()), 'nach Auswahl freigegeben');
   await addToCart(page);
 
+  step('Option nur bei bestimmter Größe');
+  await openCategory(page, 'Getränke');
+  await page.click('[data-dish=d-wasser]');
+  sh = topSheet(page);
+  await sh.locator('.add-btn').waitFor();
+  check(await sh.locator('.chip:has-text("mit Glas")').count() === 0, 'Glas: „mit Glas“ nicht angeboten');
+  await sh.locator('.seg button:has-text("Flasche")').click();
+  check(await sh.locator('.chip.on:has-text("mit Glas")').count() === 1, 'Flasche: „mit Glas“ angeboten und vorausgewählt');
+  await sh.locator('.seg button:has-text("Glas")').first().click();
+  check(await sh.locator('.chip:has-text("mit Glas")').count() === 0, 'zurück zu Glas: Option ausgeblendet');
+  await sh.locator('.navbar-side.end .barbtn').click();
+  await page.waitForTimeout(450);
+
   step('Manuell (Anmerkung Pflicht)');
   await openCategory(page, 'Vorspeisen');
   await page.click('[data-dish=manual-vorspeise]');
