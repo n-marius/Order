@@ -66,25 +66,29 @@ function buildShell() {
   shell.sb = new Map();
   shell.tabs = new Map();
 
-  const sbItems = NAV.map((n) => {
+  const sbItem = (n) => {
     const count = h('span', { class: 'sb-count' });
-    const b = h('button', { class: 'sb-item', dataset: { nav: n.id }, onclick: () => { navigate(n.id); closeDrawer(); } }, iconEl(n.icon), h('span', { class: 'grow ellipsis' }, n.label), count);
+    const b = h('button', { class: 'sb-item', dataset: { nav: n.id }, onclick: () => { navigate(n.id); closeDrawer(); } }, iconEl(n.icon), h('span', { class: 'sb-label' }, n.label), count);
     shell.sb.set(n.id, { b, count });
     return b;
-  });
+  };
+  const group = (title, ids) => [h('div', { class: 'sb-head' }, title), h('div', { class: 'sb-group' }, NAV.filter((n) => ids.includes(n.id)).map(sbItem))];
   shell.sbTitle = h('div', { class: 'k-sb-title' });
   shell.sbSub = h('div', { class: 'k-sb-sub' });
   shell.sidebar = h('aside', { class: `sidebar k-sidebar${store.get('sidebar', true) ? '' : ' collapsed'}`, 'aria-label': 'Navigation' },
     h('div', { class: 'k-sb-top' },
-      h('button', { class: 'barbtn k-sb-close', 'aria-label': 'Seitenleiste ausblenden', onclick: toggleSidebar }, iconEl('sidebar'))),
-    h('div', { class: 'k-sb-head' }, shell.sbTitle, shell.sbSub),
-    h('nav', { class: 'sb-scroll' }, sbItems));
+      h('div', { class: 'grow' }, shell.sbTitle, shell.sbSub),
+      h('button', { class: 'k-sb-close', 'aria-label': 'Seitenleiste ausblenden', onclick: toggleSidebar }, iconEl('sidebar'))),
+    h('nav', { class: 'sb-scroll' },
+      group('Service', ['orders', 'done']),
+      group('Speisekarte', ['dishes', 'ingredients']),
+      group('Gerät', ['settings'])));
   shell.dim = h('div', { class: 'sidebar-dim', onclick: closeDrawer });
 
   shell.toggle = h('button', { class: 'barbtn k-sb-toggle', 'aria-label': 'Seitenleiste einblenden', onclick: toggleSidebar }, iconEl('sidebar'));
   shell.title = h('div', { class: 'navbar-title' });
   shell.actions = h('div', { class: 'k-actions' });
-  shell.navbar = h('header', { class: 'navbar k-nav clear' },
+  shell.navbar = h('header', { class: 'navbar k-nav at-top' },
     h('div', { class: 'navbar-row' },
       h('div', { class: 'navbar-side' }, shell.toggle),
       shell.title,
@@ -109,7 +113,7 @@ function buildShell() {
 
 function renderSidebarTitle() {
   shell.sbTitle.textContent = 'Küche';
-  shell.sbSub.textContent = app.settings.deviceName && app.settings.deviceName !== 'Küche' ? app.settings.deviceName : 'Tafel';
+  shell.sbSub.replaceChildren(iconEl('flame'), h('span', null, app.settings.deviceName && app.settings.deviceName !== 'Küche' ? app.settings.deviceName : 'Tafel'));
 }
 
 function syncToggle() {
@@ -132,8 +136,8 @@ function closeDrawer() { shell.sidebar.classList.remove('open'); }
 
 function onScroll() {
   const y = shell.scroll.scrollTop;
-  shell.navbar.classList.toggle('clear', y < 4);
-  shell.navbar.classList.toggle('titled', y > 44);
+  shell.navbar.classList.toggle('at-top', y < 4);
+  shell.navbar.classList.toggle('titled', y > 52);
 }
 
 // ---------- Navigation ----------
@@ -146,6 +150,8 @@ function navigate(id) {
   shell.title.textContent = n.label;
   shell.actions.replaceChildren(...(view.actions || []));
   shell.content.replaceChildren(view.el);
+  shell.main.dataset.route = n.id;
+  view.el.classList.add('enter');
   shell.scroll.scrollTop = 0;
   view.update?.();
   for (const [k, { b }] of shell.sb) { b.classList.toggle('on', k === n.id); b.setAttribute('aria-current', k === n.id ? 'page' : 'false'); }

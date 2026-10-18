@@ -29,7 +29,7 @@ function dishArt(d, cls) {
   const src = d.imageId && app.sync.images.get(d.imageId);
   if (src) return h('div', { class: `ph ${cls}` }, h('img', { src, alt: '', decoding: 'async' }));
   const el = h('div', { class: `ph k-art k-art-${d.category} ${cls}` },
-    d.country ? h('span', { class: 'k-art-flag' }, flag(d.country)) : iconEl(catIcon(d.category)));
+    iconEl(catIcon(d.category)));
   if (d.imageId) {
     app.sync.getImage(d.imageId).then((url) => {
       if (!url) return;
@@ -119,22 +119,24 @@ export function dishesView() {
 
   function card(d) {
     const av = dishAvailability(app.view, d);
-    const cat = categoryById(d.category);
+    const open = () => openRecipe({ dishId: d.id });
     return h('div', {
       class: `k-dish${av.available ? '' : ' unavailable'}${d.hidden ? ' is-hidden' : ''}`, role: 'button', tabindex: '0',
-      dataset: { dish: d.id }, onclick: () => openRecipe({ dishId: d.id }), onkeydown: (e) => { if (e.key === 'Enter') openRecipe({ dishId: d.id }); },
+      'aria-label': d.name, dataset: { dish: d.id }, onclick: open, onkeydown: (e) => { if (e.key === 'Enter') open(); },
     },
     h('div', { class: 'k-dish-media' },
       dishArt(d, 'k-dish-ph'),
-      h('button', { class: 'k-dish-edit', 'aria-label': `${d.name} bearbeiten`, onclick: (e) => { e.stopPropagation(); openDishEditor(d.id); } }, h('span', { html: icon('pencil') })),
-      d.hidden ? h('span', { class: 'k-dish-hidden' }, 'Ausgeblendet') : null),
-    h('div', { class: 'k-dish-body' },
-      h('div', { class: 'k-dish-name' }, d.country ? h('span', { class: 'k-flag' }, flag(d.country)) : null, h('span', null, d.name)),
-      h('div', { class: 'k-dish-meta' }, [cat?.single, minutes(d.prepMinutes), d.sizes?.length ? `${d.sizes.length} Größen` : ''].filter(Boolean).join(' · ')),
-      d.description ? h('div', { class: 'k-dish-desc' }, d.description) : null,
-      h('div', { class: `k-avail ${av.available ? 'ok' : 'no'}` }, h('i'),
-        h('span', null, av.available ? 'Verfügbar' : `Nicht verfügbar – es fehlt: ${av.missing.join(', ')}`)),
-      readyButton(d)));
+      d.prepMinutes ? h('span', { class: 'k-pill k-prep num' }, iconEl('clock'), `${d.prepMinutes} Min.`) : null,
+      d.country ? h('span', { class: 'k-pill k-pflag', title: countryName(d.country) }, flag(d.country)) : null,
+      !av.available ? h('span', { class: 'k-na' }, 'Nicht verfügbar') : d.hidden ? h('span', { class: 'k-na' }, 'Ausgeblendet') : null),
+    h('div', { class: 'k-dish-info' },
+      h('div', { class: 'k-dish-text' },
+        h('div', { class: 'k-dish-name' }, d.name),
+        !av.available ? h('div', { class: 'k-dish-missing' }, `Es fehlt: ${av.missing.join(', ')}`)
+          : d.description ? h('div', { class: 'k-dish-desc' }, d.description)
+            : h('div', { class: 'k-dish-desc' }, [d.sizes?.length ? `${d.sizes.length} Größen` : '', d.hidden ? 'Im Menü ausgeblendet' : ''].filter(Boolean).join(' · ') || categoryById(d.category)?.single)),
+      h('button', { class: 'k-dish-edit', 'aria-label': `${d.name} bearbeiten`, onclick: (e) => { e.stopPropagation(); openDishEditor(d.id); } }, iconEl('pencil'))),
+    readyButton(d));
   }
 
   function readyButton(d) {
@@ -206,12 +208,11 @@ export function openRecipe({ dishId, item, order }) {
 
     if (dish?.imageId) parts.push(dishPhoto(dish.imageId, 'k-hero', catIcon(dish.category)));
     parts.push(h('div', { class: 'k-rhead' },
-      h('div', { class: 'k-rcat' }, cat?.single || ''),
-      h('h2', { class: 'k-rtitle' }, country ? h('span', { class: 'k-flag' }, flag(country)) : null, h('span', null, title)),
+      h('h2', { class: 'k-rtitle' }, h('span', null, title), country ? h('span', { class: 'k-rflag', title: countryName(country) }, flag(country)) : null),
+      h('div', { class: 'k-rmeta' },
+        [cat?.single, country ? countryName(country) : '', dish?.prepMinutes ? `${dish.prepMinutes} Min.` : ''].filter(Boolean).join(' · ')),
       h('div', { class: 'k-rchips' },
-        country ? h('span', { class: 'k-chip' }, countryName(country)) : null,
-        dish?.prepMinutes ? h('span', { class: 'k-chip' }, iconEl('clock'), `${dish.prepMinutes} Min.`) : null,
-        dish && !manual ? h('span', { class: `k-chip ${av.available ? 'ok' : 'no'}` }, iconEl(av.available ? 'checkCircle' : 'warning'), av.available ? 'Verfügbar' : 'Nicht verfügbar') : null,
+        dish && !manual ? h('span', { class: `k-chip ${av.available ? 'ok' : 'no'}` }, iconEl(av.available ? 'checkCircle' : 'warning'), av.available ? 'Verfügbar' : `Nicht verfügbar – es fehlt: ${av.missing.join(', ')}`) : null,
         dish?.hidden ? h('span', { class: 'k-chip' }, 'Im Menü ausgeblendet') : null),
       dish?.description ? h('p', { class: 'k-rdesc' }, dish.description) : null));
 

@@ -260,7 +260,7 @@ async function main() {
   await shot(page, 'ipad-light-08-zutaten');
   await nav(page, 'dishes');
   await page.locator('.k-dish.unavailable', { hasText: 'Bruschetta' }).waitFor();
-  check(await page.locator('.k-dish', { hasText: 'Bruschetta' }).locator('.k-avail.no', { hasText: 'Basilikum' }).count() === 1, 'Gericht zeigt fehlende Zutat');
+  check(await page.locator('.k-dish', { hasText: 'Bruschetta' }).locator('.k-dish-missing', { hasText: 'Basilikum' }).count() === 1, 'Gericht zeigt fehlende Zutat');
   await shot(page, 'ipad-light-03-gerichte');
   await page.locator('.k-dish', { hasText: 'Mojito' }).click();
   await page.locator(sheetSel('k-recipe-sheet')).waitFor();
@@ -442,7 +442,7 @@ async function main() {
   await nav(page, 'dishes');
   await page.locator('.k-dish.unavailable[data-dish="vd-lakritz"]').waitFor({ timeout: 8000 })
     .then(() => check(true, 'Lakritz ohne vorhandene Sorte ist nicht verfügbar'), () => check(false, 'Lakritz ohne vorhandene Sorte ist nicht verfügbar'));
-  check((await page.locator('.k-dish[data-dish="vd-lakritz"] .k-avail').textContent()).includes('Sorte: keine Auswahl vorhanden'), 'Grund „Sorte: keine Auswahl vorhanden“');
+  check((await page.locator('.k-dish[data-dish="vd-lakritz"] .k-dish-missing').textContent()).includes('Sorte: keine Auswahl vorhanden'), 'Grund „Sorte: keine Auswahl vorhanden“');
 
   // ---------- Vorrat ----------
   log('Vorrat');

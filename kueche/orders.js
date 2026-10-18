@@ -92,7 +92,7 @@ function orderCard(order) {
       h('div', { class: 'k-clock num' }, fmtTime(order.createdAt)),
       ago(order.createdAt, 'k-ago'))),
   badges.length ? h('div', { class: 'k-badges' }, badges) : null,
-  order.note ? h('div', { class: 'k-onote' }, iconEl('note'), h('span', null, order.note)) : null,
+  order.note ? h('div', { class: 'k-onote' }, iconEl('note'), h('div', null, h('div', { class: 'k-onote-l' }, 'Anmerkung'), h('div', null, order.note))) : null,
   h('div', { class: 'k-lines' }, visible.map((it) => orderLine(it, info.infos[order.items.indexOf(it)]))),
   !order.cancelled && info.total ? progress(info.done, info.total) : null);
 }
@@ -101,13 +101,14 @@ function orderLine(it, info) {
   const det = itemDetails(it);
   const ic = STATE_ICON[info.state];
   return h('div', { class: `k-line state-${info.state}` },
+    h('span', { class: 'k-ldot' }),
     h('span', { class: 'k-qty num' }, `${it.qty || 1}×`),
     h('div', { class: 'k-lmain' },
       h('div', { class: 'k-lname' }, it.country ? h('span', { class: 'k-flag' }, flag(it.country)) : null, h('span', null, it.name)),
       det.length || info.stock ? h('div', { class: 'k-ldet' },
         info.stock ? h('span', { class: 'k-stock' }, iconEl('bag'), stockLabel(it, info.stock)) : null, det.join(' · ')) : null,
       it.note ? h('div', { class: 'k-lnote' }, it.note) : null),
-    ic ? h('span', { class: 'k-lstate', html: icon(ic) }) : h('span', { class: 'k-lstate dot' }));
+    ic ? h('span', { class: 'k-lstate', html: icon(ic) }) : h('span', { class: 'k-lstate' }));
 }
 
 function progress(done, total) {
