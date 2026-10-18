@@ -113,7 +113,7 @@ export const DISHES = [
     sizes: sizes('Brocken', 'Scheibe'), ingredients: [ing('halva')],
   }),
   D('chocolate-cake', {
-    name: 'Chocolate-Cake mit Eis', category: 'dessert', country: 'US', sort: 30, prepMinutes: 25,
+    name: 'Chocolate-Cake mit Eis', category: 'dessert', country: 'US', sort: 30, prepMinutes: 35, tpl: 2,
     ingredients: [ing('zartbitter', 'g', 50), ing('butter', 'g', 40), ing('eier', 'Stück', 1), ing('zucker', 'g', 25), ing('mehl', 'g', 15)],
     steps: [
       'Backofen auf 200 °C Ober-/Unterhitze vorheizen, ein ofenfestes Förmchen (ca. 150 ml) buttern und leicht mit Zucker ausstreuen.',
@@ -144,10 +144,10 @@ export const DISHES = [
 
   // ---------- frisch zubereitet ----------
   D('cannolo', {
-    name: 'Cannolo', category: 'dessert', country: 'IT', sort: 100, prepMinutes: 10,
+    name: 'Cannolo', category: 'dessert', country: 'IT', sort: 100, prepMinutes: 45, tpl: 2,
     ingredients: [ing('cannoli-roehren', 'Stück', 1), ing('ricotta', 'g', 60), ing('puderzucker', 'g', 10), ing('vanillezucker', 'g', 2)],
     steps: [
-      'Ricotta in einem feinen Sieb kurz abtropfen lassen.',
+      'Ricotta in einem feinen Sieb 30 Minuten abtropfen lassen.',
       'Ricotta mit Puderzucker und Vanillezucker glatt rühren und in einen Spritzbeutel füllen.',
       'Die Cannoli-Röhre erst unmittelbar vor dem Servieren von beiden Seiten füllen, damit sie knusprig bleibt.',
       'Sorte Pistazie: beide Enden in gehackte Pistazien tauchen.',
@@ -164,7 +164,7 @@ export const DISHES = [
     ],
   }),
   D('creme-brulee', {
-    name: 'Creme-Brûlée', category: 'dessert', country: 'FR', sort: 110, prepMinutes: 180,
+    name: 'Creme-Brûlée', category: 'dessert', country: 'FR', sort: 110, prepMinutes: 240, tpl: 2,
     sizes: SCHALEN(),
     ingredients: [
       per('sahne', 'ml', S3, [100, 170, 250]),
@@ -253,6 +253,15 @@ export const DISHES = [
 
 /** Abweichende Felder früherer Vorlagenversionen (zur Erkennung unveränderter Gerichte). */
 export const PREVIOUS = {
+  'vd-chocolate-cake': { prepMinutes: 25 },
+  'vd-creme-brulee': { prepMinutes: 180 },
+  'vd-cannolo': { prepMinutes: 10, steps: [
+    'Ricotta in einem feinen Sieb kurz abtropfen lassen.',
+    'Ricotta mit Puderzucker und Vanillezucker glatt rühren und in einen Spritzbeutel füllen.',
+    'Die Cannoli-Röhre erst unmittelbar vor dem Servieren von beiden Seiten füllen, damit sie knusprig bleibt.',
+    'Sorte Pistazie: beide Enden in gehackte Pistazien tauchen.',
+    'Falls gewählt, mit Pistaziencreme beträufeln; mit Puderzucker bestäuben.',
+  ] },
   'vd-walnuss-salami': {
     options: [{ id: 'o-dazu', name: 'Dazu', type: 'multi', required: false,
       choices: [{ id: 'c-senf', name: 'Fallot-Senf', ingredientId: 'vz-fallot-senf', default: false }] }],
