@@ -6,7 +6,7 @@ import { pushState, enablePush, sendTestPush, isStandalone } from '../shared/pus
 import { chime } from '../shared/sound.js';
 import { app, updateSettings, largeTitle, formRow, actionCell, put, norm } from './ctx.js';
 import { resetSeen } from './signals.js';
-import { INGREDIENTS, DISHES } from './vorlage.js';
+import { INGREDIENTS, DISHES, PREVIOUS } from './vorlage.js';
 
 const DEFAULT_API = 'https://api.github.com';
 const TOKEN_HINT = 'Benötigt wird ein Fine-grained Personal Access Token mit der Berechtigung „Gists: Read and write“ (github.com → Settings → Developer settings → Personal access tokens).';
@@ -51,10 +51,14 @@ function textField(value, onCommit, { placeholder = '', type = 'text', mono = fa
  * in keinem Küchendokument existiert (auch nicht als gelöschter Eintrag).
  */
 export function planTemplateImport() {
-  const raw = { dishes: new Set(), ingredients: new Map() };
+  const raw = { dishes: new Set(), ingredients: new Map(), latest: new Map() };
   for (const doc of app.sync.docs()) {
     if (doc?.device?.role !== 'kitchen') continue;
-    for (const id of Object.keys(doc.menu?.dishes || {})) raw.dishes.add(id);
+    for (const [id, dish] of Object.entries(doc.menu?.dishes || {})) {
+      raw.dishes.add(id);
+      const prev = raw.latest.get(id);
+      if (!prev || (dish.updatedAt || 0) > (prev.updatedAt || 0)) raw.latest.set(id, dish);
+    }
     for (const [id, ing] of Object.entries(doc.menu?.ingredients || {})) {
       const prev = raw.ingredients.get(id);
       if (!prev || (ing.updatedAt || 0) > (prev.updatedAt || 0)) raw.ingredients.set(id, ing);
@@ -68,38 +72,61 @@ export function planTemplateImport() {
     if (existing) idMap.set(ing.id, existing);
     else { idMap.set(ing.id, ing.id); missingIngs.push(ing); }
   }
-  const dishes = DISHES.filter((dd) => !raw.dishes.has(dd.id)).map((dd) => {
+  const mapIds = (dd) => {
     const c = structuredClone(dd);
     c.ingredients = (c.ingredients || []).map((r) => ({ ...r, ingredientId: idMap.get(r.ingredientId) || r.ingredientId }));
     for (const g of c.options || []) for (const ch of g.choices || []) if (ch.ingredientId) ch.ingredientId = idMap.get(ch.ingredientId) || ch.ingredientId;
     return c;
-  });
-  // Fehlende Zutaten nur anlegen, wenn sie nicht bewusst gelöscht wurden – außer ein neu angelegtes Gericht braucht sie.
-  const used = new Set(dishes.flatMap((dd) => [...(dd.ingredients || []).map((r) => r.ingredientId), ...(dd.options || []).flatMap((g) => (g.choices || []).map((ch) => ch.ingredientId))]));
-  const ingredients = missingIngs.filter((i) => !raw.ingredients.get(i.id)?.deleted || used.has(i.id));
-  return { dishes, ingredients };
+  };
+  const dishes = DISHES.filter((dd) => !raw.dishes.has(dd.id)).map(mapIds);
+  // Ältere, seit dem Import unveränderte Vorlagengerichte aktualisieren; bearbeitete nur melden.
+  const updates = [];
+  const skipped = [];
+  for (const dd of DISHES) {
+    const cur = raw.latest.get(dd.id);
+    if (!cur || cur.deleted || (cur.tpl || 1) >= (dd.tpl || 1)) continue;
+    const old = mapIds({ ...dd, ...(PREVIOUS[dd.id] || {}) });
+    if (sameContent(cur, old)) {
+      const next = mapIds(dd);
+      const keep = Object.fromEntries(['ready', 'imageId', 'hidden', 'sort'].filter((k) => k in cur).map((k) => [k, cur[k]]));
+      updates.push({ ...cur, ...pick(next, CONTENT_KEYS), ...keep, tpl: dd.tpl });
+    } else skipped.push(cur.name || dd.name);
+  }
+  // Fehlende Zutaten nur anlegen, wenn sie nicht bewusst gelöscht wurden – außer ein neues/aktualisiertes Gericht braucht sie.
+  const used = new Set([...dishes, ...updates].flatMap((dd) => [...(dd.ingredients || []).map((r) => r.ingredientId), ...(dd.options || []).flatMap((g) => (g.choices || []).map((ch) => ch.ingredientId))]));
+  const ingredients = missingIngs.filter((i) => used.has(i.id) || (!raw.ingredients.get(i.id)?.deleted && !raw.ingredients.has(i.id)));
+  return { dishes, updates, skipped, ingredients };
 }
+
+const CONTENT_KEYS = ['name', 'category', 'country', 'description', 'prepMinutes', 'sizes', 'defaultSizeId', 'ingredients', 'steps', 'options', 'ice'];
+const pick = (o, keys) => Object.fromEntries(keys.filter((k) => k in o).map((k) => [k, o[k]]));
+const canon = (v) => (Array.isArray(v) ? `[${v.map(canon).join(',')}]`
+  : v && typeof v === 'object' ? `{${Object.keys(v).sort().filter((k) => v[k] !== undefined).map((k) => `${JSON.stringify(k)}:${canon(v[k])}`).join(',')}}`
+    : JSON.stringify(v ?? null));
+const sameContent = (a, b) => CONTENT_KEYS.every((k) => canon(a[k]) === canon(b[k]));
 
 async function importTemplate(btn) {
   const plan = planTemplateImport();
   const n = (k, one, many) => (k === 1 ? `1 ${one}` : `${k} ${many}`);
-  if (!plan.dishes.length && !plan.ingredients.length) {
-    await alert({ title: 'Vorlage bereits vorhanden', message: 'Alle Gerichte und Zutaten der Vorlage sind bereits angelegt. Gelöschte Gerichte werden nicht wiederhergestellt.' });
+  const skippedText = plan.skipped.length ? ` Nicht aktualisiert, da zwischenzeitlich bearbeitet: ${plan.skipped.join(', ')}.` : '';
+  if (!plan.dishes.length && !plan.updates.length && !plan.ingredients.length) {
+    await alert({ title: 'Vorlage bereits vorhanden', message: `Alle Gerichte und Zutaten der Vorlage sind bereits angelegt. Gelöschte Gerichte werden nicht wiederhergestellt.${skippedText}` });
     return;
   }
+  const upd = plan.updates.length ? ` ${n(plan.updates.length, 'vorhandenes Gericht wird', 'vorhandene Gerichte werden')} auf den neuen Stand gebracht (Fotos und Vorrat bleiben erhalten).` : '';
   const ok = await confirm('Vorlage importieren?',
-    `Es werden ${n(plan.dishes.length, 'Gericht', 'Gerichte')} und ${n(plan.ingredients.length, 'Zutat', 'Zutaten')} angelegt. Vorhandene Einträge bleiben unverändert, gleichnamige Zutaten werden verwendet.`,
+    `Es werden ${n(plan.dishes.length, 'Gericht', 'Gerichte')} und ${n(plan.ingredients.length, 'Zutat', 'Zutaten')} angelegt.${upd} Gleichnamige Zutaten werden verwendet.${skippedText}`,
     'Importieren');
   if (!ok) return;
   await busy(btn, async () => {
     const t = now();
     app.sync.mutate((d) => {
       for (const i of plan.ingredients) d.menu.ingredients[i.id] = { id: i.id, name: i.name, available: true, updatedAt: t };
-      for (const dd of plan.dishes) d.menu.dishes[dd.id] = { ...dd, updatedAt: t };
+      for (const dd of [...plan.dishes, ...plan.updates]) d.menu.dishes[dd.id] = { ...dd, updatedAt: t };
     });
     app.rebuild();
   });
-  toast(`${n(plan.dishes.length, 'Gericht', 'Gerichte')} und ${n(plan.ingredients.length, 'Zutat', 'Zutaten')} angelegt`, { message: 'Vorlage Snacks und Desserts', icon: 'checkCircle', tone: 'green', ms: 4000 });
+  toast(`${n(plan.dishes.length, 'Gericht', 'Gerichte')} und ${n(plan.ingredients.length, 'Zutat', 'Zutaten')} angelegt${plan.updates.length ? `, ${plan.updates.length} aktualisiert` : ''}`, { message: 'Vorlage Snacks, Desserts und Getränke', icon: 'checkCircle', tone: 'green', ms: 4000 });
 }
 
 // ---------- Ansicht ----------
@@ -249,7 +276,7 @@ export function settingsView() {
 
       pushWrap,
 
-      section('Vorlage', [importBtn], `Snacks und Desserts mit Rezepten, Portionsgrößen und Auswahloptionen (${DISHES.length} Gerichte, ${INGREDIENTS.length} Zutaten). Ein erneuter Import legt nur fehlende Einträge an.`),
+      section('Vorlage', [importBtn], `Snacks, Desserts und Getränke mit Rezepten, Portionsgrößen und Auswahloptionen (${DISHES.length} Gerichte, ${INGREDIENTS.length} Zutaten). Ein erneuter Import legt nur fehlende Einträge an und aktualisiert unveränderte ältere Vorlagengerichte.`),
 
       section('Ton', [
         cell({ title: 'Signalton', sub: 'Bei neuen Bestellungen, Änderungen und Antworten', end: switchEl(s.sound, (v) => updateSettings({ sound: v }), { label: 'Signalton' }) }),

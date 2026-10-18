@@ -397,7 +397,8 @@ async function main() {
   await page.getByRole('button', { name: 'Vorlage importieren' }).click();
   const conf = page.locator('.alert-root.in');
   await conf.waitFor();
-  const expectIngs = TPL.INGREDIENTS.length - 2;
+  const haveNames = new Set(Object.values(fileOf(await state(), GID, KFILE).menu.ingredients).filter((i) => !i.deleted).map((i) => i.name.toLowerCase()));
+  const expectIngs = TPL.INGREDIENTS.filter((i) => !haveNames.has(i.name.toLowerCase())).length;
   check((await conf.textContent()).includes(`${TPL.DISHES.length} Gerichte und ${expectIngs} Zutaten`), `Bestätigung nennt ${TPL.DISHES.length} Gerichte und ${expectIngs} Zutaten`);
   await shot(page, 'ipad-light-15-vorlage-bestaetigen');
   await conf.getByRole('button', { name: 'Importieren' }).click();

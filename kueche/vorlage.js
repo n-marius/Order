@@ -1,5 +1,8 @@
 // Vorlage: Snacks und Desserts. Wird über Einstellungen → „Vorlage importieren“ in die Küche übernommen.
 // Feste IDs: ein erneuter Import legt nichts doppelt an. Vorhandene Zutaten gleichen Namens werden wiederverwendet.
+// tpl: Version eines Vorlagengerichts. Ist ein importiertes Gericht älter und seither unverändert, aktualisiert
+// ein erneuter Import es (Fotos, Vorrat, Ausblenden und Sortierung bleiben erhalten). PREVIOUS enthält die
+// abweichenden Felder früherer Versionen, um „unverändert“ erkennen zu können.
 
 const I = (id, name) => ({ id: `vz-${id}`, name });
 
@@ -18,9 +21,25 @@ export const INGREDIENTS = [
   I('brueckentrueffel', 'Brückentrüffel'),
   I('vanilleeis', 'Vanilleeis'),
   I('cookie-dough-eis', 'Cookie-Dough-Eis'),
-  I('fallot-senf', 'Fallot-Senf'),
+  I('fallot-senf', 'Fallot-Senf Klassisch'),
+  I('fallot-estragon', 'Fallot-Senf Estragon'),
+  I('fallot-honig-balsamico', 'Fallot-Senf Honig-Balsamico'),
+  I('fallot-trueffel', 'Fallot-Senf Trüffel'),
   I('pistaziencreme', 'Pistaziencreme'),
   I('olivenoel', 'Olivenöl'),
+  // Getränke
+  I('skiwasser', 'Skiwasser'),
+  I('tymbark', 'Timbark'),
+  I('fanta-shokata', 'Fanta Shokata'),
+  I('kombutscha', 'Kombutscha'),
+  I('calypso', 'Calypso'),
+  I('san-bitter', 'San Bitter'),
+  I('bitter-lemon', 'Bitter Lemon'),
+  I('orangensaft', 'Orangensaft'),
+  I('mangosaft', 'Mangosaft'),
+  I('limettensaft', 'Limettensaft'),
+  I('ginger-beer', 'Ginger Beer'),
+  I('limette', 'Limette'),
   // Grundrezepte
   I('cannoli-roehren', 'Cannoli-Röhren'),
   I('ricotta', 'Ricotta'),
@@ -59,7 +78,7 @@ const EISSORTE = {
 };
 
 const D = (id, o) => ({
-  id: `vd-${id}`, country: '', description: '', imageId: null, prepMinutes: 5,
+  id: `vd-${id}`, tpl: 1, country: '', description: '', imageId: null, prepMinutes: 5,
   sizes: [], defaultSizeId: null, ingredients: [], steps: [], options: [], ice: null, hidden: false,
   ...o,
   ...(o.sizes?.length ? { defaultSizeId: o.sizes[0].id } : {}),
@@ -68,11 +87,15 @@ const D = (id, o) => ({
 export const DISHES = [
   // ---------- herzhaft ----------
   D('walnuss-salami', {
-    name: 'Walnuss-Salami', category: 'vorspeise', country: 'IT', sort: 10,
+    name: 'Walnuss-Salami', category: 'vorspeise', country: 'IT', sort: 10, tpl: 2,
     sizes: sizes('5 Scheiben', '10 Scheiben', '20 Scheiben'),
     ingredients: [per('walnuss-salami', 'Scheiben', S3, [5, 10, 20])],
-    options: [{ id: 'o-dazu', name: 'Dazu', type: 'multi', required: false,
-      choices: [{ id: 'c-senf', name: 'Fallot-Senf', ingredientId: 'vz-fallot-senf', default: false }] }],
+    options: [{ id: 'o-dazu', name: 'Fallot-Senf', type: 'multi', required: false, choices: [
+      { id: 'c-senf', name: 'Klassisch', ingredientId: 'vz-fallot-senf', default: false },
+      { id: 'c-senf-estragon', name: 'Estragon', ingredientId: 'vz-fallot-estragon', default: false },
+      { id: 'c-senf-honig-balsamico', name: 'Honig-Balsamico', ingredientId: 'vz-fallot-honig-balsamico', default: false },
+      { id: 'c-senf-trueffel', name: 'Trüffel', ingredientId: 'vz-fallot-trueffel', default: false },
+    ] }],
   }),
   D('oliven', {
     name: 'matte Oliven', category: 'vorspeise', country: 'ES', sort: 20,
@@ -192,4 +215,46 @@ export const DISHES = [
       'Mit ganzen Himbeeren abschließen.',
     ],
   }),
+
+  // ---------- Getränke (alkoholfrei) ----------
+  ...[
+    ['skiwasser', 'Skiwasser', 'AT'],
+    ['tymbark', 'Timbark', 'PL'],
+    ['fanta-shokata', 'Fanta Shokata', 'UA'],
+    ['kombutscha', 'Kombutscha', 'MX'],
+    ['calypso', 'Calypso', 'US'],
+  ].map(([id, name, country], i) => D(id, {
+    name, category: 'getraenk', country, sort: 10 + i * 10, ice: { default: false }, ingredients: [ing(id)],
+  })),
+  D('san-bitter', {
+    name: 'San Bitter', category: 'getraenk', country: 'IT', sort: 60, ice: { default: false },
+    ingredients: [ing('san-bitter', 'ml', 100)],
+  }),
+  D('san-bitter-bitter-lemon-orangensaft', {
+    name: 'San Bitter - Bitter Lemon - Orangensaft', category: 'getraenk', country: 'IT', sort: 70, ice: { default: false },
+    ingredients: [ing('san-bitter', 'ml', 100), ing('bitter-lemon', 'ml', 75), ing('orangensaft', 'ml', 75)],
+    steps: ['San Bitter ins Glas geben, mit Bitter Lemon und Orangensaft auf 250 ml auffüllen.'],
+  }),
+  D('san-bitter-bitter-lemon', {
+    name: 'San Bitter - Bitter Lemon', category: 'getraenk', country: 'IT', sort: 80, ice: { default: false },
+    ingredients: [ing('san-bitter', 'ml', 100), ing('bitter-lemon', 'ml', 150)],
+    steps: ['San Bitter ins Glas geben, mit Bitter Lemon auf 250 ml auffüllen.'],
+  }),
+  D('mango-mule', {
+    name: 'Mango Mule', category: 'getraenk', sort: 90, ice: { default: true },
+    ingredients: [ing('mangosaft', 'ml', 80), ing('limettensaft', 'ml', 10), ing('ginger-beer', 'ml', 120), ing('limette', 'Scheibe', 1)],
+    steps: [
+      'Mangosaft und Limettensaft ins Glas geben.',
+      'Bei Auswahl „mit Eis“ das Glas mit Eiswürfeln füllen.',
+      'Mit Ginger Beer auffüllen, kurz umrühren und mit einer Limettenscheibe garnieren.',
+    ],
+  }),
 ];
+
+/** Abweichende Felder früherer Vorlagenversionen (zur Erkennung unveränderter Gerichte). */
+export const PREVIOUS = {
+  'vd-walnuss-salami': {
+    options: [{ id: 'o-dazu', name: 'Dazu', type: 'multi', required: false,
+      choices: [{ id: 'c-senf', name: 'Fallot-Senf', ingredientId: 'vz-fallot-senf', default: false }] }],
+  },
+};
