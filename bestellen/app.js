@@ -83,8 +83,8 @@ function buildShell() {
   sb.more = h('div', { class: 'sb-group' });
   const sidebar = h('nav', { class: `sidebar${ui.collapsed ? ' collapsed' : ''}`, 'aria-label': 'Navigation' },
     h('div', { class: 'sb-top' },
-      h('div', { class: 'sb-brand' }, 'Tafel'),
-      sb.title),
+      h('div', { class: 'grow' }, h('div', { class: 'sb-brand' }, 'Tafel'), sb.title),
+      h('button', { class: 'sb-close', 'aria-label': 'Seitenleiste ausblenden', onclick: () => toggleSidebar() }, iconEl('sidebar'))),
     h('div', { class: 'sb-scroll' },
       h('div', { class: 'sb-head' }, 'Speisekarte'), sb.cats,
       h('div', { class: 'sb-head' }, 'Bestellung'), sb.more));
@@ -182,6 +182,7 @@ function renderNow(reset) {
   pending = false;
   const r = S.route;
   const { content, scroller, navTitle } = shell;
+  scroller.parentElement.dataset.route = r.name;
   const y = scroller.scrollTop;
   let el;
   if (r.name === 'orders') el = renderOrders();

@@ -117,6 +117,9 @@ export async function seed(base, browser) {
   const b = await api(base, 'POST', '/gists', { description: 'Tafel – Fotos', public: false, files: { 'README.md': { content: '# Tafel' } } });
   const t = Date.now();
   const list = dishes();
+  // Zubereitungszeiten (Minuten); Espresso, Wasser und Rotwein ohne Angabe
+  const PREP = { 'd-bruschetta': 10, 'd-hummus': 5, 'd-miso': 10, 'd-guac': 10, 'd-carbonara': 20, 'd-lachs': 25, 'd-padthai': 15, 'd-schnitzel': 35, 'd-gyros': 20, 'd-tiramisu': 5, 'd-creme': 90, 'd-mango': 180, 'd-limo': 5, 'd-matcha': 5, 'd-mojito': 5, 'd-gintonic': 3, 'd-spritz': 3 };
+  for (const d of list) d.prepMinutes = PREP[d.id] ?? null;
   const photos = await renderPhotos(browser, list);
   const imgFiles = {};
   const dishMap = {};

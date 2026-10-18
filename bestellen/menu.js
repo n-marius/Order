@@ -8,6 +8,15 @@ import { sheet, segmented, stepper, photo, toast, icon, iconEl } from '../shared
 import { S, view, cart, saveCart, emit } from './store.js';
 import { BOLT, boltEl, readyFor, readySum, readyBySize } from './stock.js';
 
+/** Zubereitungszeit lesbar: „5 Min.“, „1 Std. 30 Min.“, „3 Std.“ ('' ohne Angabe). */
+export function fmtPrep(min) {
+  const m = Math.round(+min || 0);
+  if (m <= 0) return '';
+  if (m < 60) return `${m} Min.`;
+  const hh = Math.floor(m / 60); const r = m % 60;
+  return r ? `${hh} Std. ${r} Min.` : `${hh} Std.`;
+}
+
 // ---------- Raster ----------
 
 export function renderMenu(cat) {
@@ -22,7 +31,6 @@ export function renderMenu(cat) {
 
   return h('div', { class: 'page menu-page' },
     h('header', { class: 'page-head' },
-      h('div', { class: 'page-eyebrow' }, 'Speisekarte'),
       h('h1', { class: 't-large' }, c.name),
       h('div', { class: 'page-sub' }, sub),
       h('div', { class: 'cat-strip', role: 'tablist' }, CATEGORIES.map((x) => h('button', {
@@ -37,6 +45,7 @@ function dishCard(v, d) {
   const fl = flag(d.country);
   const ready = av.available ? readySum(v, d) : 0;
   const sizesReady = ready && d.sizes?.length ? readyBySize(d).filter((x) => x.n > 0) : [];
+  const prep = d.manual ? '' : fmtPrep(d.prepMinutes);
   const media = d.manual
     ? h('div', { class: 'dish-photo manual-art', html: icon('compose') })
     : photo(S.sync, d.imageId, { cls: 'dish-photo', ph: categoryById(d.category)?.icon || 'photo' });
@@ -48,6 +57,7 @@ function dishCard(v, d) {
   },
   h('div', { class: 'dish-media' },
     media,
+    prep ? h('span', { class: 'dish-prep', title: 'Zubereitungszeit' }, iconEl('clock'), prep) : null,
     fl ? h('span', { class: 'dish-flag', title: countryName(d.country) }, fl) : null,
     av.available ? null : h('span', { class: 'dish-na' }, 'Nicht verfügbar'),
     ready ? h('span', { class: 'ready-badge' }, h('span', { class: 'ready-icon', html: BOLT }), h('span', { class: 'ready-text' }, 'Sofort verfügbar'), h('span', { class: 'ready-count' }, String(ready))) : null),
@@ -106,6 +116,7 @@ export function openDish(dishId, { item = null, onSave = null, saveLabel = 'Übe
   const head = h('div', { class: 'dish-head' },
     eyebrow ? h('div', { class: 'dish-eyebrow' }, eyebrow) : null,
     h('h2', { class: 'dish-title' }, h('span', {}, dish.name), fl ? h('span', { class: 'dish-title-flag' }, fl) : null),
+    !dish.manual && fmtPrep(dish.prepMinutes) ? h('div', { class: 'dish-meta' }, iconEl('clock'), `Zubereitung ${fmtPrep(dish.prepMinutes)}`) : null,
     dish.manual ? h('p', { class: 'dish-lead' }, 'Freie Bestellung. Die gewünschte Speise wird in der Beschreibung angegeben.')
       : dish.description ? h('p', { class: 'dish-lead' }, dish.description) : null);
 

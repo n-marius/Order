@@ -69,8 +69,8 @@ export function renderSettings() {
 
   const el = h('div', { class: 'page settings-page' },
     h('header', { class: 'page-head' },
-      h('div', { class: 'page-eyebrow' }, 'Bestellgerät'),
-      h('h1', { class: 't-large' }, 'Einstellungen')),
+      h('h1', { class: 't-large' }, 'Einstellungen'),
+      h('div', { class: 'page-sub' }, `Bestellgerät · ${s.deviceName || 'ohne Raumnamen'}`)),
     h('div', { class: 'settings-cols' },
       h('div', { class: 'settings-col' },
         section('Gerät', [

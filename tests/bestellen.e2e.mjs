@@ -206,6 +206,18 @@ try {
   check(await page.locator('[data-dish=d-tiramisu] .ready-badge').count() === 1, 'Badge „Sofort verfügbar“ auf der Karte');
   check(await page.locator('[data-dish=d-tiramisu] .ready-count').textContent() === '3', 'Anzahl 3 im Badge');
   check(await page.locator('[data-dish=d-creme] .ready-badge').count() === 0, 'kein Badge ohne Vorrat');
+  check((await page.locator('[data-dish=d-tiramisu] .dish-prep').textContent()) === '5 Min.', 'Zubereitungszeit „5 Min.“ oben links');
+  check((await page.locator('[data-dish=d-creme] .dish-prep').textContent()) === '1 Std. 30 Min.', 'Zubereitungszeit „1 Std. 30 Min.“');
+  check((await page.locator('[data-dish=d-mango] .dish-prep').textContent()) === '3 Std.', 'Zubereitungszeit „3 Std.“');
+  check(await page.locator('[data-dish=manual-dessert] .dish-prep').count() === 0, 'Manuell ohne Zubereitungszeit');
+  const prepBox = await page.locator('[data-dish=d-tiramisu] .dish-prep').boundingBox();
+  const flagBox = await page.locator('[data-dish=d-tiramisu] .dish-flag').boundingBox();
+  check(prepBox.x < flagBox.x && Math.abs(prepBox.y - flagBox.y) < 2, 'Zeit links, Flagge rechts auf gleicher Höhe');
+  await page.click('[data-dish=d-creme]');
+  await topSheet(page).locator('.dish-meta').waitFor();
+  check((await topSheet(page).locator('.dish-meta').textContent()) === 'Zubereitung 1 Std. 30 Min.', 'Feinauswahl: Zubereitungszeit unter dem Namen');
+  await topSheet(page).locator('.navbar-side.end .barbtn').click();
+  await page.waitForTimeout(450);
   await shot(page, 'ipad-light-02b-ready');
   await openCategory(page, 'Hauptspeisen');
   check(await page.locator('[data-dish=d-schnitzel] .ready-count').textContent() === '2', 'Schnitzel: Badge mit 2');
@@ -511,7 +523,8 @@ try {
   await page.click('.sidebar .sb-item:has-text("Meine Bestellungen")');
   await page.waitForTimeout(500);
   await shot(page, 'ipad-dark-06-orders');
-  await page.click('.sb-toggle');
+  check(await page.locator('.sb-toggle').isHidden(), 'Umschalter bei sichtbarer Seitenleiste in der Leiste selbst');
+  await page.click('.sb-close');
   await page.waitForTimeout(500);
   check(await page.locator('.sidebar.collapsed').count() === 1, 'Seitenleiste eingeklappt');
   await page.click('.sidebar .sb-item:has-text("Hauptspeisen")', { force: true }).catch(() => {});

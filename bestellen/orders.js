@@ -26,9 +26,8 @@ export function renderOrders() {
   const orders = myOrders();
   const open = orders.filter((o) => !o.cancelled && !orderDone(view(), o)).length;
   const head = h('header', { class: 'page-head' },
-    h('div', { class: 'page-eyebrow' }, room()),
     h('h1', { class: 't-large' }, 'Meine Bestellungen'),
-    h('div', { class: 'page-sub' }, orders.length ? (open ? `${open} offen · ${orders.length} insgesamt` : `${orders.length} abgeschlossen`) : 'Keine Bestellungen'));
+    h('div', { class: 'page-sub' }, [room(), orders.length ? (open ? `${open} offen` : 'alle abgeschlossen') : null].filter(Boolean).join(' · ')));
 
   if (!orders.length) {
     return h('div', { class: 'page orders-page' }, head,
